@@ -119,8 +119,8 @@
 
 ### Location Rules ###
 #used in World.java, combine collections
-(rule $Set ($Areas) (IdentityFn) (anchored true))
-(rule $Set ($AreaCollections) (IdentityFn) (anchored true))
+#(rule $Set ($Areas) (IdentityFn) (anchored true))
+#(rule $Set ($AreaCollections) (IdentityFn) (anchored true))
 
 
 (rule $AreaCollection (rooms) all_rooms (anchored true))
