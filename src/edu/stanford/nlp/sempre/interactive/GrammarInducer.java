@@ -275,7 +275,8 @@ public class GrammarInducer {
     // return def.cat;
     // TODO : this seems like a very naive thing to do
     String cat = def.getCat();
-    if (cat.endsWith("s"))
+    //Added comparison to ignore 's' at the end of "Areas", not sure if it is important 
+    if (cat.endsWith("s") && !cat.equals("$Areas"))
       return cat.substring(0, cat.length() - 1);
     else
       return cat;
