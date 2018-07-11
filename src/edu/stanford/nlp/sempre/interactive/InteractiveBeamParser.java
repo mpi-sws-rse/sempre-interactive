@@ -61,7 +61,9 @@ public class InteractiveBeamParser extends Parser {
   };
 
   public static Options opts = new Options();
-
+  
+  
+  double simMin = 0.6; //Threshold for similarity to a rule for non parsable utterance
   Trie trie; // For non-cat-unary rules
   // so that duplicated rules are never added
   Set<Rule> allRules;
@@ -352,8 +354,19 @@ class InteractiveBeamParserState extends ChartParserState {
         	}
         	
 //        	for (Derivation d : this.chartList) {
-//        		d.printDerivationRecursively();
-//        	}
+//    			d.printDerivationRecursively();
+//    		}
+        	
+        	if (parser.verbose(2)){
+        	      LogInfo.begin_track("ParserState.infer trying to extend parsing");
+        	}
+        	LogInfo.logs("chartlist %s", chartList.toString());
+
+        	extendParsing();
+        	
+            if (parser.verbose(2)){
+            	LogInfo.end_track();
+            }
     	    
         }
     }
@@ -364,6 +377,7 @@ class InteractiveBeamParserState extends ChartParserState {
 	  LinkedList<Range> filteredRanges = new LinkedList<Range>();
 	  LinkedList<String> understandableStrings = new LinkedList<String>();
 	  for (Derivation d : chartList) {
+		  LogInfo.logs("Derivation %s in eliminate", d.toString());
 		  Range derivRange =Range.between(d.start, d.end); 
 		  if (!allRanges.contains(derivRange)) {
 			  allRanges.add(derivRange);
@@ -443,6 +457,7 @@ class InteractiveBeamParserState extends ChartParserState {
     return cat + ":" + start + ":" + end;
   }
 
+  
   // Return number of new derivations added
   private int applyRule(int start, int end, Rule rule, List<Derivation> children) {
     if (Parser.opts.verbose >= 5)
@@ -725,4 +740,135 @@ class InteractiveBeamParserState extends ChartParserState {
       return true;
     return coarseState.chart[start][end].containsKey(cat);
   }
+  
+  
+  private void extendParsing() {
+	  List<String> rhs = getRHS();
+	  
+	  Set<Rule> applicableRules = new LinkedHashSet<Rule>();
+	  for (Rule rule : parser.allRules) {
+		  double similarity = computeSimilarity(rhs, rule);
+		  if (similarity > parser.simMin) {
+			  applicableRules.add(rule);
+		  }
+	  }
+	  LogInfo.logs("Set of applicable rules:");
+	  LogInfo.logs(applicableRules.toString());
+	  //TODO: how to apply the rule to get a derivation
+	  return;
+  }
+  
+  //size of intersection / size of union 
+  private double computeSimilarity(List<String> rhs, Rule rule) {
+	  List<String> ruleRHS = new ArrayList<String>(rule.rhs);
+	  
+	  Set<String> intersection = new HashSet<String>(rhs);
+	  intersection.retainAll(ruleRHS);
+	  
+	  Set<String> union = new HashSet<String>(rhs);
+	  union.addAll(ruleRHS);
+	  
+	  double similarity = ((double) intersection.size()) / ((double) union.size());
+	  
+	  if (Parser.opts.verbose > 5) {
+		  LogInfo.logs("Computed similarity %s with rule %s", similarity, rule.toString());
+	  }
+	  
+	  return similarity;
+  }
+  
+  //longest common subsequence
+/*  private double computeSimilarity(List<String> rhs, Rule rule) {
+	  
+	  if (Parser.opts.verbose > 5) {
+		  LogInfo.logs("Computing similarity with rule %s", rule.toString());
+	  }
+	  
+	  List<String> ruleRHS = new ArrayList<String>(rule.rhs);
+	  
+	  int uttLen = rhs.size();
+	  int ruleLen = ruleRHS.size();
+	  int longerLen = (ruleLen > uttLen ? ruleLen : uttLen);
+	  if (longerLen <= 0) return 0.0; 	//invalid length
+	  
+	  //check if the categories (start with '$') in both RHS are equal
+	  List<String> rhsCat = rhs.stream().filter(s -> s.startsWith("$")).collect(Collectors.toList());
+	  List<String> ruleRhsCat = ruleRHS.stream().filter(s -> s.startsWith("$")).collect(Collectors.toList());
+	  if (!rhsCat.equals(ruleRhsCat)) return 0.0;
+	  
+	  double similarity = 1.0;
+
+	  //dynamic computation of longest common subsequence
+	  int[][] subsequence = new int[uttLen + 1][ruleLen + 1];
+	  
+	  for (int i = 0; i <= uttLen; i++) 
+		  subsequence[i][0] = 0;
+	  for (int j = 0; j <= ruleLen; j++) 
+		  subsequence[0][j] = 0;
+	  for (int i = 1; i <= uttLen; i++) {
+		  for (int j = 1; j <= ruleLen; j++) {
+			  if (rhs.get(i-1).equals(ruleRHS.get(j-1))) 
+				  subsequence[i][j] = 1 + subsequence [i-1][j-1];
+			  else
+				  subsequence[i][j] = Math.max(subsequence[i-1][j], subsequence[i][j-1]);
+		  }
+	  }
+	  
+	  int longestSubsequence = subsequence[uttLen][ruleLen];
+	  
+	  if (Parser.opts.verbose > 5) {
+		  LogInfo.logs("Longest common subsequence length: %s", longestSubsequence);
+	  }
+	  
+	  similarity = (double) longestSubsequence / (double) longerLen;
+	  
+	  return similarity;
+  }
+  */
+  
+  
+  //transform a non parsable utterance into a list of parsable categories and non parsable tokens
+  private List<String> getRHS(){
+	  //base string
+	  List<String> rhs = new ArrayList<String>(ex.getTokens());
+	  if (Parser.opts.verbose > 4)
+		  LogInfo.logs("before transforming: %s", rhs.toString());
+
+	  
+	  for (Derivation d: chartList) {
+		  LogInfo.logs("category %s for derivation %s", d.cat.substring(1), d.toString());
+		  String cat = d.cat;
+		  
+		  //uncomment these lines if extending the replacement in rhs
+//		  if (!cat.toUpperCase().equals(cat)){
+//			  if (rhs.get(d.start).equals("$Areas")) continue;
+		  if (GrammarInducer.opts.simpleCats.contains(cat.substring(1))) { //remove this line if extending the replacement in rhs
+		  	rhs.set(d.start, cat);
+		  	
+		  	for (int i = d.start + 1; i < d.end; i++) {
+		  		rhs.set(i, null);
+		  	}
+		  }
+	  }
+	  
+	  //filter out the null strings
+	  rhs = rhs.stream().filter(s -> s!= null).collect(Collectors.toList());
+
+	  if (Parser.opts.verbose > 4)
+		  LogInfo.logs("After transforming: %s", rhs.toString());
+	  return rhs;
+  }
+//  
+//  private void addMatches(Derivation deriv, Map<String, List<Derivation>> chartMap) {
+//	  	List<Derivation> matches = new ArrayList<Derivation>()
+//	    String key = GrammarInducer.catFormulaKey(deriv);
+//	    if (chartMap.containsKey(key)) {
+//	      deriv.grammarInfo.matches.addAll(chartMap.get(key));
+//	      deriv.grammarInfo.matched = true;
+//	      matches.addAll(chartMap.get(key));
+//	    }
+//	    for (Derivation d : deriv.children) {
+//	      addMatches(d, chartMap);
+//	    }
+//  }
 }
