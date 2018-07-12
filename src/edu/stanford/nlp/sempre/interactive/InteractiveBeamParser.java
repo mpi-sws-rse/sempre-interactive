@@ -52,8 +52,9 @@ public class InteractiveBeamParser extends Parser {
     public FloatStrategy floatStrategy = FloatStrategy.Never;
     @Option(gloss = "track these categories")
     public List<String> trackedCats;
-    
-    
+    @Option(gloss="Similarity threshold for a rule to be applicable to a non-parsable utterance")
+    public double simMin = 0;
+
   }
 
   public enum FloatStrategy {
@@ -63,7 +64,6 @@ public class InteractiveBeamParser extends Parser {
   public static Options opts = new Options();
   
   
-  double simMin = 0.6; //Threshold for similarity to a rule for non parsable utterance
   Trie trie; // For non-cat-unary rules
   // so that duplicated rules are never added
   Set<Rule> allRules;
@@ -360,7 +360,6 @@ class InteractiveBeamParserState extends ChartParserState {
         	if (parser.verbose(2)){
         	      LogInfo.begin_track("ParserState.infer trying to extend parsing");
         	}
-        	LogInfo.logs("chartlist %s", chartList.toString());
 
         	extendParsing();
         	
@@ -377,7 +376,6 @@ class InteractiveBeamParserState extends ChartParserState {
 	  LinkedList<Range> filteredRanges = new LinkedList<Range>();
 	  LinkedList<String> understandableStrings = new LinkedList<String>();
 	  for (Derivation d : chartList) {
-		  LogInfo.logs("Derivation %s in eliminate", d.toString());
 		  Range derivRange =Range.between(d.start, d.end); 
 		  if (!allRanges.contains(derivRange)) {
 			  allRanges.add(derivRange);
@@ -741,26 +739,71 @@ class InteractiveBeamParserState extends ChartParserState {
     return coarseState.chart[start][end].containsKey(cat);
   }
   
-  
+  /**
+   * Tries to extend the parsing of a non-parsable utterance using partial parsing 
+   * and similarity with rules in the grammar to compute possible relevant derivations.
+   * @author Akshal Aniche
+   */
   private void extendParsing() {
-	  List<String> rhs = getRHS();
+	  ArrayList<Derivation> matches = new ArrayList<Derivation>(ex.getTokens().size()); //keep track of which derivation corresponds to which category
 	  
-	  Set<Rule> applicableRules = new LinkedHashSet<Rule>();
+	  //abstract the utterance from the partially parsable fragments and track the corresponding derivations
+	  List<String> rhs = getRHS(matches);
+	  	  	   
+	  //collect all the rules that match the utterance past the similarity threshold
+	  final Map<Rule, Double> ruleSimilarityMap = new HashMap<Rule, Double>();
 	  for (Rule rule : parser.allRules) {
 		  double similarity = computeSimilarity(rhs, rule);
-		  if (similarity > parser.simMin) {
-			  applicableRules.add(rule);
+		  if (similarity > InteractiveBeamParser.opts.simMin) {
+			  ruleSimilarityMap.put(rule, Double.valueOf(similarity));
 		  }
 	  }
-	  LogInfo.logs("Set of applicable rules:");
-	  LogInfo.logs(applicableRules.toString());
-	  //TODO: how to apply the rule to get a derivation
+	 
+	  //Sort the rule in decreasing order of similarity
+	  List<Rule> applicableRules = new ArrayList<Rule>(ruleSimilarityMap.keySet());
+	  
+	  if (applicableRules.size() > 1) { 
+		  Collections.sort(applicableRules, 
+				  	new Comparator<Rule>() {
+				  		public int compare(Rule rule1, Rule rule2) {
+				  			return (ruleSimilarityMap.get(rule2)).compareTo(ruleSimilarityMap.get(rule1)); 
+				  		}
+		  			}
+		  ); 
+	  }
+	  	
+	  if (Parser.opts.verbose > 3) {
+		  LogInfo.logs("Set of similar rules:");
+		  LogInfo.logs(applicableRules.toString());
+	  }
+	  
+	  for (Rule rule : applicableRules) {
+		  String matching = matchToRule(rule, matches);
+		  if (Parser.opts.verbose > 3) 
+			  LogInfo.logs("Utterance converted to %s", matching);
+		  
+		//TODO: how to apply the rule to get a derivation
+		//to test: InteractiveBeamParserState state = ((InteractiveBeamParser) parser).parseWithoutExecuting(params, exHead, false);
+
+	  }
+	  
 	  return;
   }
   
-  //size of intersection / size of union 
+  
+  /**
+   * Computes the similarity between the partially parsed utterance and a given rule's RHS 
+   * similarity is a double between 0 and 1 inclusive.
+   * Note: similarity = size of intersection / size of union
+   * Useless for further results
+   * @author Akshal Aniche
+   * @param rhs partially parsed utterance abstracted using categories 
+   * @param rule
+   * @return similarity 
+   */
+  /*
   private double computeSimilarity(List<String> rhs, Rule rule) {
-	  List<String> ruleRHS = new ArrayList<String>(rule.rhs);
+	  ArrayList<String> ruleRHS = new ArrayList<String>(rule.rhs);
 	  
 	  Set<String> intersection = new HashSet<String>(rhs);
 	  intersection.retainAll(ruleRHS);
@@ -775,10 +818,19 @@ class InteractiveBeamParserState extends ChartParserState {
 	  }
 	  
 	  return similarity;
-  }
+  }*/
   
-  //longest common subsequence
-/*  private double computeSimilarity(List<String> rhs, Rule rule) {
+  /**
+   * Computes the similarity between the partially parsed utterance and a given rule's RHS 
+   * similarity is a double between 0 and 1 inclusive.
+   * Note: similarity = length of longest common subsequence / max(length of given rhs, length of rule's RHS)
+   * @author Akshal Aniche
+   * @param rhs partially parsed utterance abstracted using categories 
+   * @param rule
+   * @return similarity 
+   * @throws RuntimeException if computed similarity is not within bounds
+   */
+  private double computeSimilarity(List<String> rhs, Rule rule) {
 	  
 	  if (Parser.opts.verbose > 5) {
 		  LogInfo.logs("Computing similarity with rule %s", rule.toString());
@@ -788,7 +840,7 @@ class InteractiveBeamParserState extends ChartParserState {
 	  
 	  int uttLen = rhs.size();
 	  int ruleLen = ruleRHS.size();
-	  int longerLen = (ruleLen > uttLen ? ruleLen : uttLen);
+	  int longerLen = Math.max(uttLen, ruleLen);
 	  if (longerLen <= 0) return 0.0; 	//invalid length
 	  
 	  //check if the categories (start with '$') in both RHS are equal
@@ -822,28 +874,84 @@ class InteractiveBeamParserState extends ChartParserState {
 	  
 	  similarity = (double) longestSubsequence / (double) longerLen;
 	  
+	  if (similarity < 0.0 || similarity > 1.0)
+		  throw new RuntimeException("Computational problem for similarity with rule " + rule.toString());
 	  return similarity;
   }
-  */
   
   
-  //transform a non parsable utterance into a list of parsable categories and non parsable tokens
-  private List<String> getRHS(){
+  
+  /**
+   * Create a string that would match a given rule by replacing the categories in the rule's RHS
+   * by the corresponding fragment of the original utterance
+   * @author Akshal Aniche
+   * @param rule
+   * @param matches
+   * @return matching String 
+   * @throws IllegalArgumentException if the number of categories to replace is different from the number of tracked derivations
+   */
+  private String matchToRule (Rule rule, List<Derivation> matches) {
+	 List<String> utterance = ex.getTokens();
+	 List<String> rhs = rule.rhs;
+	 List<String> categories = rhs.stream().filter(s -> s.startsWith("$")).collect(Collectors.toList());
+  
+	 if (matches.size() != categories.size()) 
+		 throw new IllegalArgumentException ("There was an error converting categories into strings because of length mismatch.");
+	 
+	 List<String> converted = new ArrayList<String>();
+	 
+	 Iterator<Derivation> derivIter = matches.iterator();
+	 Iterator<String> rhsIter = rhs.iterator();
+	 while (rhsIter.hasNext()) {
+		 String token = rhsIter.next();
+		 //if it's a category, then replace it by the corresponding token
+		 if (token.startsWith("$")) {
+			 Derivation correspondingDeriv = derivIter.next();
+			 for (int i = correspondingDeriv.start; i < correspondingDeriv.end; i++) {
+				 //take the corresponding tokens in the utterance and add them to the converted list
+				 converted.add(utterance.get(i));
+			 }
+		 }
+		 //it's not a category, so there is no need to replace anything
+		 else {
+			 converted.add(token);
+		 }
+	 }
+	 
+	 //concatenate the converted List
+	 String matchingUtterance = String.join(" ", converted);
+	 return matchingUtterance;
+  
+  }
+  
+  
+  /**
+   * Transform a non parsable utterance into a list of Strings: categories corresponding to parsable fragments and non parsable tokens
+   * @author Akshal Aniche
+   * @param matches ArrayList of derivations in which to store the derivations corresponding to the parsable fragments
+   * @return computed List<String>
+   */
+  private List<String> getRHS(ArrayList<Derivation> matches){
 	  //base string
-	  List<String> rhs = new ArrayList<String>(ex.getTokens());
+	  ArrayList<String> rhs = new ArrayList<String>(ex.getTokens());
+
+	  for (int i = 0; i < rhs.size(); i++) 
+		  matches.add(null);
+
 	  if (Parser.opts.verbose > 4)
 		  LogInfo.logs("before transforming: %s", rhs.toString());
 
 	  
 	  for (Derivation d: chartList) {
-		  LogInfo.logs("category %s for derivation %s", d.cat.substring(1), d.toString());
 		  String cat = d.cat;
 		  
-		  //uncomment these lines if extending the replacement in rhs
-//		  if (!cat.toUpperCase().equals(cat)){
-//			  if (rhs.get(d.start).equals("$Areas")) continue;
-		  if (GrammarInducer.opts.simpleCats.contains(cat.substring(1))) { //remove this line if extending the replacement in rhs
+		  //Ignore non-inducing categories and Action categories
+		  if (!cat.toUpperCase().equals(cat) && !cat.startsWith("$Action")){
+			  if (rhs.get(d.start) != null) {
+				  if (rhs.get(d.start).equals("$Areas")) continue;
+			  }
 		  	rhs.set(d.start, cat);
+		  	matches.set(d.start, d);
 		  	
 		  	for (int i = d.start + 1; i < d.end; i++) {
 		  		rhs.set(i, null);
@@ -851,24 +959,13 @@ class InteractiveBeamParserState extends ChartParserState {
 		  }
 	  }
 	  
-	  //filter out the null strings
-	  rhs = rhs.stream().filter(s -> s!= null).collect(Collectors.toList());
-
-	  if (Parser.opts.verbose > 4)
+	  rhs.removeAll(Collections.singleton(null));
+	  matches.removeAll(Collections.singleton(null));
+	  
+	  if (Parser.opts.verbose > 4) {
 		  LogInfo.logs("After transforming: %s", rhs.toString());
+		  LogInfo.logs("Corresponding derivations are: %s", matches.toString());
+	  }
 	  return rhs;
   }
-//  
-//  private void addMatches(Derivation deriv, Map<String, List<Derivation>> chartMap) {
-//	  	List<Derivation> matches = new ArrayList<Derivation>()
-//	    String key = GrammarInducer.catFormulaKey(deriv);
-//	    if (chartMap.containsKey(key)) {
-//	      deriv.grammarInfo.matches.addAll(chartMap.get(key));
-//	      deriv.grammarInfo.matched = true;
-//	      matches.addAll(chartMap.get(key));
-//	    }
-//	    for (Derivation d : deriv.children) {
-//	      addMatches(d, chartMap);
-//	    }
-//  }
 }
