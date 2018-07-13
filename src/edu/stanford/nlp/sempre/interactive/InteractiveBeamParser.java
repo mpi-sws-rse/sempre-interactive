@@ -801,7 +801,12 @@ class InteractiveBeamParserState extends ChartParserState {
 			  LogInfo.logs(d.toString());
 	  }
 	  
-	  return;
+	  predDerivations.addAll(potentialDeriv);
+	  if (ex.predDerivations == null)
+		  ex.predDerivations = potentialDeriv;
+	  else
+		  ex.predDerivations.addAll(potentialDeriv);
+	  return; 
   }
   
   /**
@@ -833,9 +838,9 @@ class InteractiveBeamParserState extends ChartParserState {
 		  return new ArrayList<Derivation>();
 	  
 	  //Should we only consider the top scoring derivations
-	  return exHead.predDerivations.subList(0,  Math.min(exHead.predDerivations.size(), 1));
-	  
-	  //return exHead.predDerivations;
+//	  return exHead.predDerivations.subList(0,  Math.min(exHead.predDerivations.size(), 1));
+	  	  
+	  return exHead.predDerivations;
   }
   
   /**
