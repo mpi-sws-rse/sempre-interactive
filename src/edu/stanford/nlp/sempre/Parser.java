@@ -165,8 +165,9 @@ public abstract class Parser {
    * Parse the given example |ex| using the given parameters |params|
    * and populate the fields of |ex| (e.g., predDerivations).  Note:
    * |ex| is modified in place.
+   * @since 13/07/2018 Akshal Aniche : Added secondParsing to stop an infinite loop in case of extended parsing
    */
-  public ParserState parse(Params params, Example ex, boolean computeExpectedCounts) {
+  public ParserState parse(Params params, Example ex, boolean computeExpectedCounts, boolean secondParsing) {
     // Execute target formula (if applicable).
     if (ex.targetFormula != null && ex.targetValue == null){
       ex.targetValue = executor.execute(ex.targetFormula, ex.context).value;
@@ -179,7 +180,7 @@ public abstract class Parser {
     //LogInfo.begin_track_printAll("Parser.parse: parse");
     
     ParserState state = newParserState(params, ex, computeExpectedCounts);
-
+    state.secondParsing = secondParsing;
     state.infer();
     
     
@@ -203,6 +204,11 @@ public abstract class Parser {
       deriv.clearTempState();
     return state;
   }
+  
+  public ParserState parse(Params params, Example ex, boolean computeExpectedCounts) {
+	  return parse(params, ex, computeExpectedCounts, false);
+  }
+
 
   /**
    * Compute the evaluation based on the results of parsing and add it to |evaluation|

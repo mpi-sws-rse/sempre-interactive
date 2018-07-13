@@ -125,9 +125,11 @@ public class InteractiveBeamParser extends Parser {
     return interactiveCatUnaryRules;
   }
   
+  
+  
   // for grammar induction, just need the formula, do not execute
   public InteractiveBeamParserState parseWithoutExecuting(Params params, Example ex, boolean computeExpectedCounts) {
-    // Parse
+	  // Parse
     StopWatch watch = new StopWatch();
     watch.start();
     InteractiveBeamParserState state = new InteractiveBeamParserState(this, params, ex);
@@ -215,7 +217,6 @@ class InteractiveBeamParserState extends ChartParserState {
 
     if (parser.verbose(2)){
       LogInfo.begin_track("ParserState.infer");
-      
     }
 
     // Base case
@@ -358,15 +359,19 @@ class InteractiveBeamParserState extends ChartParserState {
 //    		}
         	
         	if (parser.verbose(2)){
-        	      LogInfo.begin_track("ParserState.infer trying to extend parsing");
+        		LogInfo.begin_track("ParserState.infer trying to extend parsing");
         	}
-
-        	extendParsing();
         	
-            if (parser.verbose(2)){
-            	LogInfo.end_track();
-            }
-    	    
+        	//avoid infinite loop 
+        	if (this.secondParsing) {
+        		throw new RuntimeException("Trying to extend parsing within a previous extension of parsing.");
+        	}
+		
+        	extendParsing();
+		        	
+        	if (parser.verbose(2)){
+        		LogInfo.end_track();
+        	}
         }
     }
   }
@@ -817,20 +822,20 @@ class InteractiveBeamParserState extends ChartParserState {
 	  exHead.preprocess();
 	  
 	  //parse the utterance
-	  InteractiveBeamParserState state = parser.parseWithoutExecuting(params, exHead, false);
+	  parser.parse(params, exHead, false, true);
 	  
 	  if(Parser.opts.verbose > 2) {
-		  LogInfo.logs("Utterance %s gave the following derivations %s", utt, state.predDerivations.toString());
+		  LogInfo.logs("Utterance %s gave the following derivations %s", utt, exHead.predDerivations.toString());
 	  }
 	  
 	  //null safe return 
-	  if (state.predDerivations == null) 
+	  if (exHead.predDerivations == null) 
 		  return new ArrayList<Derivation>();
 	  
 	  //Should we only consider the top scoring derivations
-	  return state.predDerivations.subList(0,  Math.min(state.predDerivations.size(), 1));
+	  return exHead.predDerivations.subList(0,  Math.min(exHead.predDerivations.size(), 1));
 	  
-	  //return state.predDerivations;
+	  //return exHead.predDerivations;
   }
   
   /**
