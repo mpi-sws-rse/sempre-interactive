@@ -852,36 +852,7 @@ class InteractiveBeamParserState extends ChartParserState {
 	  	  
 	  return exHead.predDerivations;
   }
-  
-  /**
-   * Computes the similarity between the partially parsed utterance and a given rule's RHS 
-   * similarity is a double between 0 and 1 inclusive.
-   * Note: similarity = size of intersection / size of union
-   * Useless for further results
-   * @author Akshal Aniche
-   * @param rhs partially parsed utterance abstracted using categories 
-   * @param rule
-   * @return similarity 
-   */
-  /*
-  private double computeSimilarity(List<String> rhs, Rule rule) {
-	  ArrayList<String> ruleRHS = new ArrayList<String>(rule.rhs);
-	  
-	  Set<String> intersection = new HashSet<String>(rhs);
-	  intersection.retainAll(ruleRHS);
-	  
-	  Set<String> union = new HashSet<String>(rhs);
-	  union.addAll(ruleRHS);
-	  
-	  double similarity = ((double) intersection.size()) / ((double) union.size());
-	  
-	  if (Parser.opts.verbose > 5) {
-		  LogInfo.logs("Computed similarity %s with rule %s", similarity, rule.toString());
-	  }
-	  
-	  return similarity;
-  }*/
-  
+
   /**
    * Computes the similarity between the partially parsed utterance and a given rule's RHS 
    * similarity is a double between 0 and 1 inclusive.
@@ -1009,14 +980,19 @@ class InteractiveBeamParserState extends ChartParserState {
 		  
 		  //Ignore non-inducing categories and Action categories
 		  if (!cat.toUpperCase().equals(cat) && !cat.startsWith("$Action")){
-			  if (rhs.get(d.start) != null) {
-				  if (rhs.get(d.start).equals("$Areas")) continue;
-			  }
+			  
+			  //do not substitute $Areas by $Area
+			  if (d.end - d.start == 1 && 
+				  rhs.get(d.start) != null &&
+				  rhs.get(d.start).equals("$Areas")) 
+				  continue;
+			  
 		  	rhs.set(d.start, cat);
 		  	matches.set(d.start, d);
 		  	
 		  	for (int i = d.start + 1; i < d.end; i++) {
 		  		rhs.set(i, null);
+		  		matches.set(i, null)
 		  	}
 		  }
 	  }
