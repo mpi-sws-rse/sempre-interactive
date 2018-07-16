@@ -190,7 +190,8 @@ class InteractiveBeamParserState extends ChartParserState {
   private final InteractiveBeamParser parser;
   private final InteractiveBeamParserState coarseState; // Used to prune
   private final boolean execute;
-
+  
+  private boolean extendedParsing = false;
   public List<Derivation> chartList;
 
   public InteractiveBeamParserState(InteractiveBeamParser parser, Params params, Example ex) {
@@ -209,6 +210,8 @@ class InteractiveBeamParserState extends ChartParserState {
     this.coarseState = coarseState;
     this.execute = true;
   }
+  
+  public boolean wasParsingExtended() { return extendedParsing; }
 
   @Override
   public void infer() {
@@ -368,6 +371,9 @@ class InteractiveBeamParserState extends ChartParserState {
         	}
 		
         	extendParsing();
+        	
+        	if (predDerivations.size() != 0) 
+        		  this.extendedParsing = true; //signals that extended parsing was used successfully
 		        	
         	if (parser.verbose(2)){
         		LogInfo.end_track();
@@ -747,6 +753,7 @@ class InteractiveBeamParserState extends ChartParserState {
   /**
    * Tries to extend the parsing of a non-parsable utterance using partial parsing 
    * and similarity with rules in the grammar to compute possible relevant derivations.
+   * Adds the computed derivations to ex.predDerivations and this.predDerivations
    * @author Akshal Aniche
    */
   private void extendParsing() {
@@ -791,7 +798,6 @@ class InteractiveBeamParserState extends ChartParserState {
 		  if (Parser.opts.verbose > 2) 
 			  LogInfo.logs("Utterance converted to %s", matchingUtt);
 		  
-		//TODO: how to apply the rule to get a derivation
 		  potentialDeriv.addAll(getExtendedDerivationsFromUtterance(matchingUtt));
 	  }
 	  
@@ -836,6 +842,10 @@ class InteractiveBeamParserState extends ChartParserState {
 	  //null safe return 
 	  if (exHead.predDerivations == null) 
 		  return new ArrayList<Derivation>();
+	  
+	  for (Derivation d : exHead.predDerivations) {
+		  d.parsingUtt = utt;
+	  }
 	  
 	  //Should we only consider the top scoring derivations
 //	  return exHead.predDerivations.subList(0,  Math.min(exHead.predDerivations.size(), 1));
