@@ -992,7 +992,7 @@ class InteractiveBeamParserState extends ChartParserState {
 		  	
 		  	for (int i = d.start + 1; i < d.end; i++) {
 		  		rhs.set(i, null);
-		  		matches.set(i, null)
+		  		matches.set(i, null);
 		  	}
 		  }
 	  }

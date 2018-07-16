@@ -1,3 +1,5 @@
+Author: Akshal Aniche
+
 # Implementing the Dictionary
 Relevant files are `Dictionary.java`, `DictionaryEntry.java`, and relevant functions are `InteractiveMaster.handleCommand` and `Grammar.readInducedGrammar`.
 `Json.java` was used to handle converting objects into JSON strings and vice versa, particularly the functions `readValueHard` and `writeValueAsStringHard`.
