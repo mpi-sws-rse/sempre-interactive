@@ -365,6 +365,8 @@ class InteractiveBeamParserState extends ChartParserState {
 //        	for (Derivation d : this.chartList) {
 //    			d.printDerivationRecursively();
 //    		}
+        	
+        	//Option to extend parsing to similar rules 
         	if (Parser.opts.aggressivePartialParsing == true) {
 	        	if (parser.verbose(2)){
 	        		LogInfo.begin_track("ParserState.infer trying to extend parsing");
@@ -772,11 +774,8 @@ class InteractiveBeamParserState extends ChartParserState {
 	  }
 	  
 	  	return matchedDerivs;
-	  }
+  }
 	  
-	  
-	
-    
   
   
   /**
@@ -787,10 +786,6 @@ class InteractiveBeamParserState extends ChartParserState {
    */
   private void extendParsing() {
 	  ArrayList<Derivation> matches = new ArrayList<Derivation>(ex.getTokens().size()); //keep track of which derivation corresponds to which category
-	  
-	  
-	  
-	  
 	  	  	   
 	  //collect all the rules that match the utterance past the similarity threshold
 	  final Map<Rule, Double> ruleSimilarityMap = new HashMap<Rule, Double>();
@@ -806,7 +801,7 @@ class InteractiveBeamParserState extends ChartParserState {
 		  if(bestPackingMatches.size() > 0) {
 		
 		  
-			  List<Derivation> bestPacking = new InteractiveUtils().bestPackingDP(bestPackingMatches, ex.getTokens().size() );
+			  List<Derivation> bestPacking = InteractiveUtils.bestPackingDP(bestPackingMatches, ex.getTokens().size() );
 			  
 			  rhs = getRHS(new ArrayList<Derivation>(ex.getTokens().size()), bestPacking);
 			  

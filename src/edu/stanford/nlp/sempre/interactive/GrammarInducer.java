@@ -186,7 +186,7 @@ public class GrammarInducer {
 	      }
 	    }
 	    if (opts.useBestPacking) {
-	      List<Derivation> bestPacking = new InteractiveUtils().bestPackingDP(this.matches, numTokens);
+	      List<Derivation> bestPacking = InteractiveUtils.bestPackingDP(this.matches, numTokens);
 	      HashMap<String, String> formulaToCat = new HashMap<>();
 	      bestPacking.forEach(d -> formulaToCat.put(catFormulaKey(d), varName(d, def)));
 	      buildFormula(def, formulaToCat);

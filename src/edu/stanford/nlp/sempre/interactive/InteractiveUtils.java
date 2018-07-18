@@ -80,7 +80,7 @@ public final class InteractiveUtils {
     return deriv;
   }
 
-  class Packing {
+  static class Packing {
 	    List<Derivation> packing;
 	    double score;
 
@@ -96,13 +96,13 @@ public final class InteractiveUtils {
 	  }
 
 
-private int blockingIndex(List<Derivation> matches, int end) {
+  private static int blockingIndex(List<Derivation> matches, int end) {
 	    return matches.stream().filter(d -> d.end <= end).map(d -> d.start).max((s1, s2) -> s1.compareTo(s2))
 	        .orElse(Integer.MAX_VALUE / 2);
 	  }
 
   
-  public  List<Derivation> bestPackingDP(List<Derivation> matches, int length) {
+  public static List<Derivation> bestPackingDP(List<Derivation> matches, int length) {
 		
 		
 	    List<Packing> bestEndsAtI = new ArrayList<>(length + 1);
