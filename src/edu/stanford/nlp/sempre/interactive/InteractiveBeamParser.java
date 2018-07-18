@@ -369,6 +369,7 @@ class InteractiveBeamParserState extends ChartParserState {
         	
         	//avoid infinite loop 
         	if (this.secondParsing) {
+        		LogInfo.logs("parsing: %s", ex.getTokens());
         		throw new RuntimeException("Trying to extend parsing within a previous extension of parsing.");
         	}
 		
@@ -763,18 +764,18 @@ class InteractiveBeamParserState extends ChartParserState {
 		  }
 	  }
 	  
-	  if (ruleCategories.size() != 0 && ruleCategories.equals(matchedDerivs.stream().map(s -> s.getCat()).collect(Collectors.toSet()))) {
-		  LogInfo.logs("rule = %s and rule Categories = %s", rule, ruleCategories);
-		  LogInfo.logs("matched derivs cats = %s", matchedDerivs.stream().map(s -> s.getCat()).collect(Collectors.toSet()));
-		  return matchedDerivs;
+//	  if (ruleCategories.size() != 0 && ruleCategories.equals(matchedDerivs.stream().map(s -> s.getCat()).collect(Collectors.toSet()))) {
+//		  LogInfo.logs("rule = %s and rule Categories = %s", rule, ruleCategories);
+//		  LogInfo.logs("matched derivs cats = %s", matchedDerivs.stream().map(s -> s.getCat()).collect(Collectors.toSet()));
+//		  return matchedDerivs;
+//	  }
+//	  else {
+//		  return new ArrayList<Derivation>();
+	  	return matchedDerivs;
 	  }
-	  else {
-		  return new ArrayList<Derivation>();
-	  }
 	  
 	  
-	  
-  }
+	
   class Packing {
 	    List<Derivation> packing;
 	    double score;
@@ -797,9 +798,8 @@ class InteractiveBeamParserState extends ChartParserState {
 	  }
   
   private List<Derivation> bestPackingDP(List<Derivation> matches, int length) {
-		LogInfo.logs("received matches = %s", matches);
-		for (Derivation d : matches)
-			d.printDerivationRecursively();
+		
+		
 	    List<Packing> bestEndsAtI = new ArrayList<>(length + 1);
 	    List<Packing> maximalAtI = new ArrayList<>(length + 1);
 	    bestEndsAtI.add(new Packing(Double.NEGATIVE_INFINITY, new ArrayList<Derivation>()));
@@ -870,26 +870,30 @@ class InteractiveBeamParserState extends ChartParserState {
 	  	  	   
 	  //collect all the rules that match the utterance past the similarity threshold
 	  final Map<Rule, Double> ruleSimilarityMap = new HashMap<Rule, Double>();
-	  List<Derivation> bestPacking = bestPackingDP(chartList, ex.getTokens().size() );
-	  LogInfo.logs("THE FOUND BEST PACKING IS %s", bestPacking);
-	  List<String> rhs = getRHS(matches, bestPacking);
+	  final Map<Rule, List<Derivation>> matchesOfRules = new HashMap<Rule, List<Derivation>>();
+	  List<Derivation> generalBestPacking = bestPackingDP(chartList, ex.getTokens().size() );
+	  LogInfo.logs("THE FOUND GENERAL BEST PACKING IS %s", generalBestPacking);
+	  List<String> rhs = getRHS(matches, generalBestPacking);
 	  LogInfo.logs("rhs2 is %s", rhs);
-	  for (Derivation p : bestPacking)
-		  p.printDerivationRecursively();
+	  
 	  for (Rule rule : parser.allRules) {
 		  
 		  // it is not clear whether or not is this filtering necessary. it for sure removes the need of computing similarity for a rule that is not even vaguely similar to the existing one
-		  //ArrayList<Derivation> bestPackingMatches = ruleDerivMatchingCategories(rule, chartList);
-		  //if(bestPackingMatches.size() > 0) {
+		  ArrayList<Derivation> bestPackingMatches = ruleDerivMatchingCategories(rule, chartList);
+		  if(bestPackingMatches.size() > 0) {
 		
 		  
-			  //List<Derivation> bestPacking = bestPackingDP(bestPackingMatches, ex.getTokens().size() );
-		  
+			  List<Derivation> bestPacking = bestPackingDP(bestPackingMatches, ex.getTokens().size() );
+			  LogInfo.logs("+++++++++++++THE FOUND  BEST PACKING For rule %s is %s", rule, bestPacking);
+			  rhs = getRHS(new ArrayList<Derivation>(ex.getTokens().size()), bestPacking);
+			  LogInfo.logs("++++++++++++++corresponding rhs = %s", rhs);
+			  matchesOfRules.put(rule, bestPacking);
 			  double similarity = computeSimilarity(rhs, rule);
+			  LogInfo.logs("and the found similarity %f", similarity);
 			  if (similarity > InteractiveBeamParser.opts.simMin) {
 				  ruleSimilarityMap.put(rule, Double.valueOf(similarity));
 			  }
-	//	  }
+		  }
 	  }
 	 
 	  //Sort the rule in decreasing order of similarity
@@ -912,12 +916,15 @@ class InteractiveBeamParserState extends ChartParserState {
 		  LogInfo.logs("Set of similar rules:");
 		  LogInfo.logs(applicableRules.toString());
 	  }
+	  LogInfo.logs("Set of similar rules:");
+	  LogInfo.logs(applicableRules.toString());
 	  
 	  List<Derivation> potentialDeriv = new ArrayList<Derivation>();
 	  for (Rule rule : applicableRules) {
-		  String matchingUtt = matchToRule(rule, matches);
+		  String matchingUtt = matchToRule(rule, matchesOfRules.get(rule));
 		  if (Parser.opts.verbose > 2) 
 			  LogInfo.logs("Utterance converted to %s", matchingUtt);
+		  LogInfo.logs("Utterance converted to %s", matchingUtt);
 		  
 		//TODO: how to apply the rule to get a derivation
 		  potentialDeriv.addAll(getExtendedDerivationsFromUtterance(matchingUtt));
@@ -928,6 +935,9 @@ class InteractiveBeamParserState extends ChartParserState {
 		  for (Derivation d : potentialDeriv) 
 			  LogInfo.logs(d.toString());
 	  }
+	  LogInfo.logs("Potential derivations: ");
+	  for (Derivation d : potentialDeriv) 
+		  LogInfo.logs(d.toString());
 	  
 	  predDerivations.addAll(potentialDeriv);
 	  if (ex.predDerivations == null)
@@ -1076,7 +1086,8 @@ class InteractiveBeamParserState extends ChartParserState {
 	 List<String> utterance = ex.getTokens();
 	 List<String> rhs = rule.rhs;
 	 List<String> categories = rhs.stream().filter(s -> s.startsWith("$")).collect(Collectors.toList());
-  
+	 LogInfo.logs("rule is ---- : %s", rule);
+	 LogInfo.logs("matches are ----: %s", matches);
 	 if (matches.size() != categories.size()) 
 		 throw new IllegalArgumentException ("There was an error converting categories into strings because of length mismatch.");
 	 
@@ -1136,7 +1147,7 @@ class InteractiveBeamParserState extends ChartParserState {
 	// chartList2 = f(chartList);
 	  for (Derivation d: chartList) {
 		  String cat = d.cat;
-		  d.printDerivationRecursively();
+		  //d.printDerivationRecursively();
 		  
 		  //Ignore non-inducing categories and Action categories
 		  if (!cat.toUpperCase().equals(cat) && !cat.startsWith("$Action")){
