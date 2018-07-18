@@ -37,7 +37,6 @@ import fig.basic.Ref;
  * methods.
  */
 
-
 public class InteractiveMaster extends Master {
 	
 
