@@ -141,6 +141,7 @@ public class GrammarInducer {
     	this.matches = new ArrayList<>();
         addMatches(def, makeChartMap(chartList));
         Collections.reverse(this.matches);
+        
     
 	    if (allHead && opts.useSimplePacking) {
 	      List<Derivation> filteredMatches = this.matches.stream().filter(d -> {
@@ -284,6 +285,7 @@ public class GrammarInducer {
 
   // label the derivation tree with what it matches in chartList
   private void addMatches(Derivation deriv, Map<String, List<Derivation>> chartMap) {
+	  
     String key = catFormulaKey(deriv);
     if (chartMap.containsKey(key)) {
       deriv.grammarInfo.matches.addAll(chartMap.get(key));
@@ -318,7 +320,9 @@ public class GrammarInducer {
 
   // start inclusive, end exclusive
   private List<Derivation> bestPackingDP(List<Derivation> matches, int length) {
-	  
+	LogInfo.logs("received matches = %s", matches);
+	for (Derivation d : matches)
+		d.printDerivationRecursively();
     List<Packing> bestEndsAtI = new ArrayList<>(length + 1);
     List<Packing> maximalAtI = new ArrayList<>(length + 1);
     bestEndsAtI.add(new Packing(Double.NEGATIVE_INFINITY, new ArrayList<Derivation>()));
@@ -368,6 +372,7 @@ public class GrammarInducer {
         maximalAtI.add(i, new Packing(0, new ArrayList<>()));
       }
     }
+    LogInfo.logs("final best packing is: %s",maximalAtI.get(length).packing);
     return maximalAtI.get(length).packing;
   }
 
