@@ -760,7 +760,11 @@ class InteractiveBeamParserState extends ChartParserState {
   }
   
   
-  
+  /**
+   * Filters the partial derivations of the utterance to the derivations that are of the categories appearing in rule.rhs
+   * @param rule
+   * @param derivList
+   */
   private ArrayList<Derivation> ruleDerivMatchingCategories(Rule rule, List<Derivation> derivList){
 	  ArrayList<Derivation> matchedDerivs = new ArrayList<Derivation>();
 	  
@@ -975,7 +979,7 @@ class InteractiveBeamParserState extends ChartParserState {
    * by the corresponding fragment of the original utterance
    * @author Akshal Aniche
    * @param rule
-   * @param matches
+   * @param matches List<Derivation> that correspond to the categories in the RHS
    * @return matching String 
    * @throws IllegalArgumentException if the number of categories to replace is different from the number of tracked derivations
    */
@@ -1034,22 +1038,13 @@ class InteractiveBeamParserState extends ChartParserState {
 		  LogInfo.logs("rhs before transforming: %s", rhs.toString());
 	  }
 
-	  
-	  
 
 	  for (Derivation d: derivList) {
 		  String cat = d.cat;
 		  
-		  //Ignore non-inducing categories and Action categories
-		  if (!cat.toUpperCase().equals(cat) && !cat.startsWith("$Action")){
-			  
-			  //do not substitute $Areas by $Area
-			  if (d.end - d.start == 1 && 
-				  rhs.get(d.start) != null &&
-				  rhs.get(d.start).equals("$Areas")) 
-				  continue;
-			  
-		  	rhs.set(d.start, cat);
+		  //Ignore non-inducing categories
+		  if (!cat.toUpperCase().equals(cat)){
+			rhs.set(d.start, cat);
 		  	matches.set(d.start, d);
 		  	
 		  	for (int i = d.start + 1; i < d.end; i++) {
