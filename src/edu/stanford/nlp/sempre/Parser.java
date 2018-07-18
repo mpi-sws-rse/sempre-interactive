@@ -60,8 +60,11 @@ public abstract class Parser {
     @Option(gloss = "Call SetEvaluation during parsing")
     public boolean callSetEvaluation = true;
     
-    @Option(gloss = "do partial parsing")
+    @Option(gloss = "do partial parsing for informing what the parser was able to understand")
     public boolean partialParsing = false;
+    
+    @Option(gloss = "do partial parsing and try to execute if that parse is similar to an existing rule")
+    public boolean aggressivePartialParsing = false;
   }
 
   public static final Options opts = new Options();

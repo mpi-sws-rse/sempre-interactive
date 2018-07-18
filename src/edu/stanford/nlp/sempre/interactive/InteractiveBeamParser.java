@@ -372,8 +372,9 @@ class InteractiveBeamParserState extends ChartParserState {
         		LogInfo.logs("parsing: %s", ex.getTokens());
         		throw new RuntimeException("Trying to extend parsing within a previous extension of parsing.");
         	}
-		
-        	extendParsing();
+        	if (Parser.opts.aggressivePartialParsing == true) {
+        		extendParsing();
+        	}
 		        	
         	if (parser.verbose(2)){
         		LogInfo.end_track();
@@ -764,93 +765,13 @@ class InteractiveBeamParserState extends ChartParserState {
 		  }
 	  }
 	  
-//	  if (ruleCategories.size() != 0 && ruleCategories.equals(matchedDerivs.stream().map(s -> s.getCat()).collect(Collectors.toSet()))) {
-//		  LogInfo.logs("rule = %s and rule Categories = %s", rule, ruleCategories);
-//		  LogInfo.logs("matched derivs cats = %s", matchedDerivs.stream().map(s -> s.getCat()).collect(Collectors.toSet()));
-//		  return matchedDerivs;
-//	  }
-//	  else {
-//		  return new ArrayList<Derivation>();
 	  	return matchedDerivs;
 	  }
 	  
 	  
 	
-  class Packing {
-	    List<Derivation> packing;
-	    double score;
-
-	    public Packing(double score, List<Derivation> packing) {
-	      this.score = score;
-	      this.packing = packing;
-	    }
-
-	    @Override
-	    public String toString() {
-	      return this.score + ": " + this.packing.toString();
-	    }
-	  }
-
+    
   
-  private int blockingIndex(List<Derivation> matches, int end) {
-	    return matches.stream().filter(d -> d.end <= end).map(d -> d.start).max((s1, s2) -> s1.compareTo(s2))
-	        .orElse(Integer.MAX_VALUE / 2);
-	  }
-  
-  private List<Derivation> bestPackingDP(List<Derivation> matches, int length) {
-		
-		
-	    List<Packing> bestEndsAtI = new ArrayList<>(length + 1);
-	    List<Packing> maximalAtI = new ArrayList<>(length + 1);
-	    bestEndsAtI.add(new Packing(Double.NEGATIVE_INFINITY, new ArrayList<Derivation>()));
-	    maximalAtI.add(new Packing(0.0, new ArrayList<Derivation>()));
-
-	    @SuppressWarnings("unchecked")
-	    List<Derivation>[] endsAtI = new ArrayList[length + 1];
-
-	    for (Derivation d : matches) {
-	    	
-	      List<Derivation> derivs = endsAtI[d.end];
-	      derivs = derivs != null ? derivs : new ArrayList<>();
-	      derivs.add(d);
-	      endsAtI[d.end] = derivs;
-	    }
-
-	    for (int i = 1; i <= length; i++) {
-	      // the new maximal either uses a derivation that ends at i, plus a
-	      // previous maximal
-	      Packing bestOverall = new Packing(Double.NEGATIVE_INFINITY, new ArrayList<>());
-	      Derivation bestDerivI = null;
-	      if (endsAtI[i] != null) {
-	        for (Derivation d : endsAtI[i]) {
-	          double score = d.getScore() + maximalAtI.get(d.start).score;
-	          if (score >= bestOverall.score) {
-	            bestOverall.score = score;
-	            bestDerivI = d;
-	          }
-	        }
-	        List<Derivation> bestpacking = new ArrayList<>(maximalAtI.get(bestDerivI.start).packing);
-	        bestpacking.add(bestDerivI);
-	        bestOverall.packing = bestpacking;
-	      }
-	      bestEndsAtI.add(i, bestOverall);
-
-	      // or it's a previous bestEndsAtI[j] for i-minLength+1 <= j < i
-	      for (int j = blockingIndex(matches, i) + 1; j < i; j++) {
-	        if (bestEndsAtI.get(j).score >= bestOverall.score)
-	          bestOverall = bestEndsAtI.get(j);
-	      }
-	        LogInfo.logs("maximalAtI[%d] = %f: %s, BlockingIndex: %d", i, bestOverall.score, bestOverall.packing,
-	            blockingIndex(matches, i));
-	      if (bestOverall.score > Double.NEGATIVE_INFINITY)
-	        maximalAtI.add(i, bestOverall);
-	      else {
-	        maximalAtI.add(i, new Packing(0, new ArrayList<>()));
-	      }
-	    }
-	    LogInfo.logs("final best packing is: %s",maximalAtI.get(length).packing);
-	    return maximalAtI.get(length).packing;
-	  }
   
   /**
    * Tries to extend the parsing of a non-parsable utterance using partial parsing 
@@ -863,33 +784,34 @@ class InteractiveBeamParserState extends ChartParserState {
 	  
 	  
 	  
-	  
-	  //abstract the utterance from the partially parsable fragments and track the corresponding derivations
-	  //List<String> rhs = getRHS(matches, chartList);
-	  //LogInfo.logs("rhs as it is now is %s", rhs);
 	  	  	   
 	  //collect all the rules that match the utterance past the similarity threshold
 	  final Map<Rule, Double> ruleSimilarityMap = new HashMap<Rule, Double>();
 	  final Map<Rule, List<Derivation>> matchesOfRules = new HashMap<Rule, List<Derivation>>();
-	  List<Derivation> generalBestPacking = bestPackingDP(chartList, ex.getTokens().size() );
-	  LogInfo.logs("THE FOUND GENERAL BEST PACKING IS %s", generalBestPacking);
-	  List<String> rhs = getRHS(matches, generalBestPacking);
-	  LogInfo.logs("rhs2 is %s", rhs);
+	  List<String> rhs;
 	  
+	  // for each rule find 
 	  for (Rule rule : parser.allRules) {
 		  
-		  // it is not clear whether or not is this filtering necessary. it for sure removes the need of computing similarity for a rule that is not even vaguely similar to the existing one
+		  // keep only those derivations whose categories are mentioned in the rule 
 		  ArrayList<Derivation> bestPackingMatches = ruleDerivMatchingCategories(rule, chartList);
+		  
 		  if(bestPackingMatches.size() > 0) {
 		
 		  
-			  List<Derivation> bestPacking = bestPackingDP(bestPackingMatches, ex.getTokens().size() );
-			  LogInfo.logs("+++++++++++++THE FOUND  BEST PACKING For rule %s is %s", rule, bestPacking);
+			  List<Derivation> bestPacking = new InteractiveUtils().bestPackingDP(bestPackingMatches, ex.getTokens().size() );
+			  
 			  rhs = getRHS(new ArrayList<Derivation>(ex.getTokens().size()), bestPacking);
-			  LogInfo.logs("++++++++++++++corresponding rhs = %s", rhs);
+			  
+			  if (Parser.opts.verbose > 1) {
+				  LogInfo.logs(" best packing for rule %s is %s", rule, bestPacking);
+				  LogInfo.logs("the corresponding rhs is %s", rhs);
+			  }
 			  matchesOfRules.put(rule, bestPacking);
 			  double similarity = computeSimilarity(rhs, rule);
-			  LogInfo.logs("and the found similarity %f", similarity);
+			  if (Parser.opts.verbose > 1) {
+				  LogInfo.logs("the similarity between %s and %s is %f",rhs, rule, similarity);
+			  }
 			  if (similarity > InteractiveBeamParser.opts.simMin) {
 				  ruleSimilarityMap.put(rule, Double.valueOf(similarity));
 			  }
@@ -916,15 +838,16 @@ class InteractiveBeamParserState extends ChartParserState {
 		  LogInfo.logs("Set of similar rules:");
 		  LogInfo.logs(applicableRules.toString());
 	  }
-	  LogInfo.logs("Set of similar rules:");
-	  LogInfo.logs(applicableRules.toString());
+	  
 	  
 	  List<Derivation> potentialDeriv = new ArrayList<Derivation>();
 	  for (Rule rule : applicableRules) {
+		  // checking the matching string between a rule and the best packing corresponding to that rule
 		  String matchingUtt = matchToRule(rule, matchesOfRules.get(rule));
-		  if (Parser.opts.verbose > 2) 
-			  LogInfo.logs("Utterance converted to %s", matchingUtt);
-		  LogInfo.logs("Utterance converted to %s", matchingUtt);
+		  if (Parser.opts.verbose > 1) { 
+			  LogInfo.logs("Utterance %s converted to %s", ex.getTokens(), matchingUtt);
+		  }
+		  
 		  
 		//TODO: how to apply the rule to get a derivation
 		  potentialDeriv.addAll(getExtendedDerivationsFromUtterance(matchingUtt));
@@ -935,10 +858,8 @@ class InteractiveBeamParserState extends ChartParserState {
 		  for (Derivation d : potentialDeriv) 
 			  LogInfo.logs(d.toString());
 	  }
-	  LogInfo.logs("Potential derivations: ");
-	  for (Derivation d : potentialDeriv) 
-		  LogInfo.logs(d.toString());
 	  
+	  // adding these extra derivations to the set of existing pred derivations
 	  predDerivations.addAll(potentialDeriv);
 	  if (ex.predDerivations == null)
 		  ex.predDerivations = potentialDeriv;
@@ -967,7 +888,7 @@ class InteractiveBeamParserState extends ChartParserState {
 	  //parse the utterance
 	  parser.parse(params, exHead, false, true);
 	  
-	  if(Parser.opts.verbose > 2) {
+	  if(Parser.opts.verbose > 1) {
 		  LogInfo.logs("Utterance %s gave the following derivations %s", utt, exHead.predDerivations.toString());
 	  }
 	  
@@ -1086,8 +1007,9 @@ class InteractiveBeamParserState extends ChartParserState {
 	 List<String> utterance = ex.getTokens();
 	 List<String> rhs = rule.rhs;
 	 List<String> categories = rhs.stream().filter(s -> s.startsWith("$")).collect(Collectors.toList());
-	 LogInfo.logs("rule is ---- : %s", rule);
-	 LogInfo.logs("matches are ----: %s", matches);
+	 if (Parser.opts.verbose > 1) {
+		 LogInfo.logs("matching rule %s to matches %s", rule, matches);		 
+	 }
 	 if (matches.size() != categories.size()) 
 		 throw new IllegalArgumentException ("There was an error converting categories into strings because of length mismatch.");
 	 
@@ -1117,37 +1039,30 @@ class InteractiveBeamParserState extends ChartParserState {
   
   }
   
- 
-  private List<String> getRHS2(List<Derivation> bp){
-	  ArrayList<String> rhs = new ArrayList<String>(ex.getTokens());
-	  for (Derivation d : bp) {
-		  rhs.set(d.start, d.getCat());
-	  }
-	  return rhs;
-  }
-  
+   
   /**
    * Transform a non parsable utterance into a list of Strings: categories corresponding to parsable fragments and non parsable tokens
    * @author Akshal Aniche
    * @param matches ArrayList of derivations in which to store the derivations corresponding to the parsable fragments
    * @return computed List<String>
    */
-  private List<String> getRHS(List<Derivation> matches, List<Derivation> chartList){
+  private List<String> getRHS(List<Derivation> matches, List<Derivation> derivList){
 	  //base string
 	  ArrayList<String> rhs = new ArrayList<String>(ex.getTokens());
 
 	  for (int i = 0; i < rhs.size(); i++) 
 		  matches.add(null);
 
-	  //if (Parser.opts.verbose > 4)
-		  LogInfo.logs("before transforming: %s", rhs.toString());
+	  if (Parser.opts.verbose > 4) {
+		  LogInfo.logs("chart list = %s", derivList);
+		  LogInfo.logs("rhs before transforming: %s", rhs.toString());
+	  }
 
-	  LogInfo.logs("chart list = %s", chartList);
 	  
-	// chartList2 = f(chartList);
-	  for (Derivation d: chartList) {
+	  
+
+	  for (Derivation d: derivList) {
 		  String cat = d.cat;
-		  //d.printDerivationRecursively();
 		  
 		  //Ignore non-inducing categories and Action categories
 		  if (!cat.toUpperCase().equals(cat) && !cat.startsWith("$Action")){
@@ -1167,10 +1082,10 @@ class InteractiveBeamParserState extends ChartParserState {
 	  rhs.removeAll(Collections.singleton(null));
 	  matches.removeAll(Collections.singleton(null));
 	  
-	 // if (Parser.opts.verbose > 4) {
+	  if (Parser.opts.verbose > 1) {
 		  LogInfo.logs("After transforming: %s", rhs.toString());
 		  LogInfo.logs("Corresponding derivations are: %s", matches.toString());
-	//  }
+	  }
 	  return rhs;
   }
 }
