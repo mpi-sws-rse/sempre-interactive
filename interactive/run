@@ -182,11 +182,12 @@ addMode('voxelurn', 'interactive semantic parsing in a VoxelWorld', lambda { |e|
   o('Parser', 'interactive.InteractiveBeamParser'),
   o('Parser.callSetEvaluation', false),
   o('Parser.coarsePrune', true),
-  o('Parser.verbose', 5),
+  o('Parser.verbose', 0),
 
   o('Parser.beamSize', 50),
   o('InteractiveBeamParser.maxNewTreesPerSpan', 5001),
   o('Parser.partialParsing', true),
+  o('Parser.aggressivePartialParsing', false),
   o('ParserState.customExpectedCounts', 'None'),
 
   selo(0, 'InteractiveBeamParser.floatStrategy', 'Never', 'NoParse', 'Always'),
