@@ -119,6 +119,10 @@ public class Derivation implements SemanticFn.Callable, HasScore {
   @SuppressWarnings("unchecked")
   public static final Comparator<Derivation> derivScoreComparator =
       (Comparator<Derivation>)Utils.newInstanceHard(SempreUtils.resolveClassName("Derivation$" + opts.derivComparator));
+  
+  //if the derivation was created by extended parsing of a non-parsable utterance
+  //keep track of the creating parsable utterance to use for inducing rules
+  public String parsingUtt = "";
 
   public static final List<Derivation> emptyList = Collections.emptyList();
 
