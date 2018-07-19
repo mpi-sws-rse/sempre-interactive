@@ -48,7 +48,7 @@ public final class InteractiveUtils {
 
   public static Options opts = new Options();
 
-  private InteractiveUtils() {
+  public InteractiveUtils() {
   }
 
   // dont spam my log when reading things in the beginning...
@@ -80,6 +80,82 @@ public final class InteractiveUtils {
     return deriv;
   }
 
+  static class Packing {
+	    List<Derivation> packing;
+	    double score;
+
+	    public Packing(double score, List<Derivation> packing) {
+	      this.score = score;
+	      this.packing = packing;
+	    }
+
+	    @Override
+	    public String toString() {
+	      return this.score + ": " + this.packing.toString();
+	    }
+	  }
+
+
+  private static int blockingIndex(List<Derivation> matches, int end) {
+	    return matches.stream().filter(d -> d.end <= end).map(d -> d.start).max((s1, s2) -> s1.compareTo(s2))
+	        .orElse(Integer.MAX_VALUE / 2);
+	  }
+
+  
+  public static List<Derivation> bestPackingDP(List<Derivation> matches, int length) {
+		
+		
+	    List<Packing> bestEndsAtI = new ArrayList<>(length + 1);
+	    List<Packing> maximalAtI = new ArrayList<>(length + 1);
+	    bestEndsAtI.add(new Packing(Double.NEGATIVE_INFINITY, new ArrayList<Derivation>()));
+	    maximalAtI.add(new Packing(0.0, new ArrayList<Derivation>()));
+
+	    @SuppressWarnings("unchecked")
+	    List<Derivation>[] endsAtI = new ArrayList[length + 1];
+
+	    for (Derivation d : matches) {
+	    	
+	      List<Derivation> derivs = endsAtI[d.end];
+	      derivs = derivs != null ? derivs : new ArrayList<>();
+	      derivs.add(d);
+	      endsAtI[d.end] = derivs;
+	    }
+
+	    for (int i = 1; i <= length; i++) {
+	      // the new maximal either uses a derivation that ends at i, plus a
+	      // previous maximal
+	      Packing bestOverall = new Packing(Double.NEGATIVE_INFINITY, new ArrayList<>());
+	      Derivation bestDerivI = null;
+	      if (endsAtI[i] != null) {
+	        for (Derivation d : endsAtI[i]) {
+	          double score = d.getScore() + maximalAtI.get(d.start).score;
+	          if (score >= bestOverall.score) {
+	            bestOverall.score = score;
+	            bestDerivI = d;
+	          }
+	        }
+	        List<Derivation> bestpacking = new ArrayList<>(maximalAtI.get(bestDerivI.start).packing);
+	        bestpacking.add(bestDerivI);
+	        bestOverall.packing = bestpacking;
+	      }
+	      bestEndsAtI.add(i, bestOverall);
+
+	      // or it's a previous bestEndsAtI[j] for i-minLength+1 <= j < i
+	      for (int j = blockingIndex(matches, i) + 1; j < i; j++) {
+	        if (bestEndsAtI.get(j).score >= bestOverall.score)
+	          bestOverall = bestEndsAtI.get(j);
+	      }
+	        //LogInfo.logs("maximalAtI[%d] = %f: %s, BlockingIndex: %d", i, bestOverall.score, bestOverall.packing,blockingIndex(matches, i));
+	            
+	      if (bestOverall.score > Double.NEGATIVE_INFINITY)
+	        maximalAtI.add(i, bestOverall);
+	      else {
+	        maximalAtI.add(i, new Packing(0, new ArrayList<>()));
+	      }
+	    }
+	    return maximalAtI.get(length).packing;
+	  }
+  
   public static Derivation derivFromUtteranceAndFormula(String utterance, Formula formula, Parser parser, Params params, Session session){
 
 	  Derivation foundDerivation = null;

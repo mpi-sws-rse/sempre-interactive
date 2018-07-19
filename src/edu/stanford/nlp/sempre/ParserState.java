@@ -32,6 +32,7 @@ public abstract class ParserState {
   public final Params params;
   public final Example ex;
   public final boolean computeExpectedCounts;  // Whether we're learning
+  public boolean secondParsing = false;	//was this state created from inside an extended parsing of a non-parsable utterance
 
   //// Output
 

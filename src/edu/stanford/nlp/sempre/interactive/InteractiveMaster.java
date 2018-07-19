@@ -37,7 +37,6 @@ import fig.basic.Ref;
  * methods.
  */
 
-
 public class InteractiveMaster extends Master {
 	
 
@@ -139,8 +138,13 @@ public class InteractiveMaster extends Master {
 				return;
 			}
 			LogInfo.begin_track("Parser");
-			builder.parser.parse(builder.params, ex, false);
+			InteractiveBeamParserState state = (InteractiveBeamParserState) builder.parser.parse(builder.params, ex, false);
 			LogInfo.end_track();
+			
+			//the utterance was parsed using InteractiveBeamParserState.extendParsing()
+			if(state.wasParsingExtended()) {
+				stats.put("unparsableUtterance", utt);
+			}
 
 			stats.size(ex.predDerivations != null ? ex.predDerivations.size() : 0);
 			stats.status(InteractiveUtils.getParseStatus(ex));
