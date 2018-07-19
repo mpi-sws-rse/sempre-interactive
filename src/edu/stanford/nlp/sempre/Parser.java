@@ -65,7 +65,12 @@ public abstract class Parser {
     
     @Option(gloss = "do partial parsing and try to execute if that parse is similar to an existing rule")
     public boolean aggressivePartialParsing = false;
+    
+    @Option(gloss = "way of doing partial parsin inference")
+    public String aggressivePartialParsingMode = "normal";
   }
+
+  
 
   public static final Options opts = new Options();
 

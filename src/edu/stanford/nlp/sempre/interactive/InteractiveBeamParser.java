@@ -781,6 +781,23 @@ class InteractiveBeamParserState extends ChartParserState {
   }
 	  
   
+  /**
+   * Filters the partial derivations of the utterance to the derivations that those and only those categories that appear in the rule rhs
+   * @param rule
+   * @param derivList
+   */
+  private List<Derivation> ruleDerivMatchingCategoriesConservative(Rule rule, List<Derivation> derivList){
+	  ArrayList<Derivation> matchedDerivs = new ArrayList<Derivation>();
+	  
+	  Set<String> ruleCategories = rule.rhs.stream().filter(s -> s.startsWith("$")).collect(Collectors.toSet());
+	  Set<String> derivCategories = derivList.stream().map(s -> s.getCat()).collect(Collectors.toSet());
+	  
+	  if (ruleCategories.equals(derivCategories))
+		  return derivList;
+	  else
+		  return new ArrayList<Derivation>();
+  }
+	  
   
   /**
    * Tries to extend the parsing of a non-parsable utterance using partial parsing 
@@ -796,16 +813,29 @@ class InteractiveBeamParserState extends ChartParserState {
 	  final Map<Rule, List<Derivation>> matchesOfRules = new HashMap<Rule, List<Derivation>>();
 	  List<String> rhs;
 	  
+	  List<Derivation> globalBestPacking = InteractiveUtils.bestPackingDP(chartList, ex.getTokens().size());
+	  if (Parser.opts.verbose > 1) {
+		  LogInfo.logs("initial partial derivations are %s", chartList);
+		  LogInfo.logs("globalBestPacking = %s", globalBestPacking);
+	  }
+	  
+	  
 	  // for each rule find 
 	  for (Rule rule : parser.allRules) {
 		  
 		  // keep only those derivations whose categories are mentioned in the rule 
-		  ArrayList<Derivation> bestPackingMatches = ruleDerivMatchingCategories(rule, chartList);
+		  List<Derivation> packingMatches = new LinkedList<Derivation>();
+		  LogInfo.logs("movde of partial parsing = %s", Parser.opts.aggressivePartialParsingMode);
+		  if (Parser.opts.aggressivePartialParsingMode.equals("normal")) {
+			  packingMatches = ruleDerivMatchingCategories(rule, chartList);
+		  }
+		  else if (Parser.opts.aggressivePartialParsingMode.equals("conservative")) {
+			  packingMatches = ruleDerivMatchingCategoriesConservative(rule, globalBestPacking);
+		  }
+		  if(packingMatches.size() > 0) {
+			  LogInfo.logs("matches = %s", packingMatches);
 		  
-		  if(bestPackingMatches.size() > 0) {
-		
-		  
-			  List<Derivation> bestPacking = InteractiveUtils.bestPackingDP(bestPackingMatches, ex.getTokens().size() );
+			  List<Derivation> bestPacking = InteractiveUtils.bestPackingDP(packingMatches, ex.getTokens().size() );
 			  
 			  rhs = getRHS(new ArrayList<Derivation>(ex.getTokens().size()), bestPacking);
 			  

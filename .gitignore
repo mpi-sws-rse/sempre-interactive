@@ -11,6 +11,7 @@ libsempre
 sempre.jar
 module-classes.txt
 
+**.log
 state
 out
 test-output
