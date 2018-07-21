@@ -814,7 +814,9 @@ class InteractiveBeamParserState extends ChartParserState {
 	  List<String> rhs;
 	  
 	  List<Derivation> globalBestPacking = InteractiveUtils.bestPackingDP(chartList, ex.getTokens().size());
+	  List<List<Derivation>> setOfMaximalPackings = InteractiveUtils.allMaximalPackings(chartList, ex.getTokens().size());
 	  if (Parser.opts.verbose > 1) {
+		  LogInfo.logs("mode of partial parsing = %s", Parser.opts.aggressivePartialParsingMode);
 		  LogInfo.logs("initial partial derivations are %s", chartList);
 		  LogInfo.logs("globalBestPacking = %s", globalBestPacking);
 	  }
@@ -825,7 +827,7 @@ class InteractiveBeamParserState extends ChartParserState {
 		  
 		  // keep only those derivations whose categories are mentioned in the rule 
 		  List<Derivation> packingMatches = new LinkedList<Derivation>();
-		  LogInfo.logs("movde of partial parsing = %s", Parser.opts.aggressivePartialParsingMode);
+		  
 		  if (Parser.opts.aggressivePartialParsingMode.equals("normal")) {
 			  packingMatches = ruleDerivMatchingCategories(rule, chartList);
 		  }
@@ -833,7 +835,7 @@ class InteractiveBeamParserState extends ChartParserState {
 			  packingMatches = ruleDerivMatchingCategoriesConservative(rule, globalBestPacking);
 		  }
 		  if(packingMatches.size() > 0) {
-			  LogInfo.logs("matches = %s", packingMatches);
+			
 		  
 			  List<Derivation> bestPacking = InteractiveUtils.bestPackingDP(packingMatches, ex.getTokens().size() );
 			  

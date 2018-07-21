@@ -1,7 +1,12 @@
 package edu.stanford.nlp.sempre.interactive;
 
 import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
+import java.util.Set;
+import java.util.Comparator;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.stream.Collectors;
 
 import org.testng.collections.Lists;
@@ -83,7 +88,7 @@ public final class InteractiveUtils {
   static class Packing {
 	    List<Derivation> packing;
 	    double score;
-
+	    
 	    public Packing(double score, List<Derivation> packing) {
 	      this.score = score;
 	      this.packing = packing;
@@ -100,7 +105,161 @@ public final class InteractiveUtils {
 	    return matches.stream().filter(d -> d.end <= end).map(d -> d.start).max((s1, s2) -> s1.compareTo(s2))
 	        .orElse(Integer.MAX_VALUE / 2);
 	  }
+  
+  
 
+  /**
+   * function that calculates maximal packings for the interval (start, end) in a recursive manner
+   * <p>
+   * the set of maximal packings M(start,end) is equal to {interval_list[start][end]} union union_i M(start,i) + M(i,end)
+   * here, the plus operator is:  [ [x, y], [z] ] + [[a], [b]] = [ [x, y, a], [x, y, b], [z, a], [z, b] ]
+   * 
+   * 
+   */
+  private static List<List<Derivation>> getTheFValue(List<List<Derivation>>[][] f_table, Derivation[][] intervalTable, int start, int end){
+	  
+	  // if f_table was already filled, return the result
+	  if (f_table[start][end] != null){
+		
+		  return f_table[start][end];
+	  }
+	  else{
+		  List<List<Derivation>> f_value = new ArrayList<List<Derivation>>();
+		  List<Derivation> initialCandidate = new ArrayList<Derivation>();
+		  Derivation wholeDerivation = intervalTable[start][end];
+		  // if there is a parse of the whole (start, end) interval, add it to maximal derivations
+		  if (wholeDerivation != null){
+			  initialCandidate.add(wholeDerivation);
+			  f_value.add(initialCandidate);
+		  }
+		  
+		  // iterate over all i between start and end
+		  for (int i = start + 1; i < end; ++i){
+			  
+			  
+			  List<List<Derivation>> leftHandSideCandidates = getTheFValue(f_table, intervalTable, start, i);
+			  
+			  List<List<Derivation>> rightHandSideCandidates = getTheFValue(f_table, intervalTable, i, end);
+			  
+			  // treat specially depending on the emptiness of left or right candidates
+			  if (rightHandSideCandidates.size() == 0 && leftHandSideCandidates.size() == 0){
+				  continue;
+			  }
+			  else if (rightHandSideCandidates.size() != 0 && leftHandSideCandidates.size() == 0){
+				  for (List<Derivation> rld :rightHandSideCandidates){
+					  if (!f_value.contains(rld)){
+						  f_value.add(rld);
+					  }
+				  }
+			  }
+			  
+			  else if (leftHandSideCandidates.size() != 0 && rightHandSideCandidates.size() == 0){
+				  for (List<Derivation> lld : leftHandSideCandidates){
+					  if (!f_value.contains(lld)){
+						  f_value.add(lld);
+					  }
+				  }
+			  }
+			  
+			  else{
+			  
+				  for (List<Derivation> lld : leftHandSideCandidates){
+					  for (List<Derivation> rld : rightHandSideCandidates){
+						  List<Derivation> combinationCandidate = new ArrayList<Derivation>();
+						  combinationCandidate.addAll(lld);
+						  combinationCandidate.addAll(rld);
+						  if (!f_value.contains(combinationCandidate)){
+							  f_value.add(combinationCandidate);
+						  }
+					  }
+				  }
+			  }
+			  
+		  }
+		  
+		  f_table[start][end] = f_value;
+		  if (opts.verbose > 2){
+			  LogInfo.logs("getTheFValue: returning for (%d, %d): %s", start, end, f_value.toString());
+		  }
+		  return f_value;
+	  }
+  }
+
+  
+  /**
+   * the function that returns all maximal packings - sets of non overlapping partial derivations where adding any other partial derivation would make
+   * the set overlapping.
+   * @param partialParses list of all partial parses of the utterance (potentially overlapping)
+   * @param length length of the utterance
+   * @return maximalPackings
+   */
+  public static List<List<Derivation>> allMaximalPackings(List<Derivation> partialParses, int length){
+	  
+	  
+	  // remove all CAPS categories -> e.g. KEYWORD_TOKEN
+	  partialParses = partialParses.stream().filter(s -> ! s.getCat().equals(s.getCat().toUpperCase())).collect(Collectors.toList());
+	  if (opts.verbose > 1){
+		  LogInfo.logs("partialParses after filtering");
+		  for (Derivation d : partialParses){
+			  LogInfo.logs("derivation %s", d.toSimpleString());
+		  }
+	  }
+	  
+	  // used for storing derivations based on their (start, end) range
+	  // intervals are stored as (closed, open), that's why we need length+1 as a last one
+	  Derivation[][] interval_list = new Derivation[length+1][length+1];
+	  
+	  // used for memorizing all maximal packings in the range (start, end)
+	  List<List<Derivation>>[][] f_table = new ArrayList[length+1][length+1];
+	  for (int i = 0; i < length+1; i++){		  
+		  f_table[i] = new ArrayList[length+1];
+	  }
+	  
+	  // if derivations are over the exactly same range, we'll keep in the interval_list only one of them (the one with the best score)
+	  // Therefore, we first sort it by score (descending) and then include only the first derivation that occurs per range
+	  Collections.sort(partialParses, new Comparator<Derivation>(){
+		  @Override
+		  public int compare(Derivation d1, Derivation d2){
+			  if (d1.getScore() > d2.getScore()){
+				  return -1;
+			  }
+			  else if (d1.getScore() == d2.getScore()){
+				  return 0;
+			  }
+			  else {
+				  return 1;
+			  }
+		  }
+	  });
+
+	  
+	  
+	  
+	  for (Derivation d : partialParses){
+		  Derivation initial_I_J = interval_list[d.start][d.end];
+		  if (initial_I_J == null){
+			  interval_list[d.start][d.end] = d;
+		  }
+	  }
+	  
+	  if (opts.verbose > 1){
+		  for (int i = 0; i < length + 1; ++i){
+			  for (int j = 0; j < length + 1; ++j){
+				  if (interval_list[i][j] != null){
+					  LogInfo.logs("partialParses at (%d, %d):", i, j);
+					  Derivation d =interval_list[i][j]; 
+					  LogInfo.logs("derivation %s", d.toSimpleString());
+				  }
+			  }
+		  }
+	  }
+	  // call the recursive function getTheFValue with arguments 0 - length (e.g. the set of maximal packings of range starting at 0, ending at length) 
+	  List<List<Derivation>> maximalPackings = getTheFValue(f_table, interval_list, 0, length); 
+	  if (opts.verbose > 0){
+		  LogInfo.logs("maximalPackings = %s", maximalPackings);
+	  }
+	  return maximalPackings;
+  }
   
   public static List<Derivation> bestPackingDP(List<Derivation> matches, int length) {
 		
