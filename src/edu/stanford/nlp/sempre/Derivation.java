@@ -384,7 +384,7 @@ public class Derivation implements SemanticFn.Callable, HasScore {
   public String startEndString(List<String> tokens) {
     return start + ":" + end + (start == -1 ? "" : tokens.subList(start, end));
   }
-  public String toString() { return toLispTree().toString(); }
+  public String toString() { return String.format("%s <%d, %d> : %s",this.getCat(), this.start, this.end, toLispTree().toString()); }
 
   public void incrementLocalFeatureVector(double factor, Map<String, Double> map) {
     localFeatureVector.increment(factor, map, AllFeatureMatcher.matcher);
@@ -483,6 +483,9 @@ public class Derivation implements SemanticFn.Callable, HasScore {
     }
   }
 
+  public String toSimpleString(){
+	  return String.format("%s :: <%d - %d>", this.getCat(), this.start, this.end);
+  }
   // for debugging
   public void printDerivationRecursively() {
 	  if (rule.source == null) {
