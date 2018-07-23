@@ -822,8 +822,11 @@ class InteractiveBeamParserState extends ChartParserState {
 	  }
 	  
 	  
-	  // for each rule find 
-	  for (Rule rule : parser.allRules) {
+	  //filter the rules that are not actions
+	  final Set<Rule> actionRules = parser.allRules.stream().filter(r -> r.lhs.equals("$Action")).collect(Collectors.toSet());
+	  
+	  // for each action rule compute the similarity and keep the rules that are similar 
+	  for (Rule rule : actionRules) {
 		  
 		  // keep only those derivations whose categories are mentioned in the rule 
 		  List<Derivation> packingMatches = new LinkedList<Derivation>();
