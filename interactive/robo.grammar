@@ -20,13 +20,15 @@
 ### Action Rules ###
 
 (rule $Action (strict $Action) (lambda a (:strict (var a))) (anchored true))
-(rule $Action (visit $Point) (lambda x (: @visit (var x))) (anchored true))
+(rule $Action ($Visit $Point) (lambda v (lambda x (: @visit (var x)))) (anchored true))
 (rule 
 	$Action 
-	(visit $Areas) 
-	(lambda a 
-		(: @visitArea 
-		 (var a)
+	($Visit $Areas) 
+	(lambda v 
+		(lambda a 
+			(: @visitArea 
+		 	(var a)
+			)
 		)
 	) 
 	(anchored true)
@@ -34,56 +36,64 @@
 
 (rule 
 	$Action 
-	(visit $Areas while avoiding $Areas) 
-	(lambda a1
-		(lambda a2 
-			(: 
-				@visitArea 
-		 		(var a1)
-		 		(var a2)
-		 	)
-		)
-	) 
+	($Visit $Areas while avoiding $Areas) 
+	(lambda v 
+		(lambda a1
+			(lambda a2 
+				(: 
+					@visitArea 
+			 		(var a1)
+			 		(var a2)
+			 	)
+			)
+		) 
+	)
 	(anchored true)
 )
 
 
 (rule 
 	$Action 
-	(visit $AreaCollections while avoiding $Areas) 
-	(lambda a1
-		(lambda a2 
-			(: 
-				@visitAreaCollections 
-		 		(var a1)
-		 		(var a2)
-		 	)
-		)
-	) 
+	($Visit $AreaCollections while avoiding $Areas) 
+	(lambda v 
+		(lambda a1
+			(lambda a2 
+				(: 
+					@visitAreaCollections 
+			 		(var a1)
+			 		(var a2)
+			 	)
+			)
+		) 
+	)
 	(anchored true)
 )
 
 
 (rule
 	$Action
-	(visit $AreaCollections)
-	(lambda a
-		(: @visitAreaCollections
-			(var a)	
+	($Visit $AreaCollections)
+	(lambda v 
+		(lambda a
+			(: @visitAreaCollections
+				(var a)	
+			)
 		)
 	)
 	(anchored true)
 )
 
+(rule $Action ($Visit $Point while avoiding $Areas) (lambda v (lambda f  (lambda a (: @visit (var f) (var a))))) (anchored true))
+(rule $Visit (visit) visit (anchored true))
 
-
-
-(rule $Action (visit $Point while avoiding $Areas) (lambda f  (lambda a (: @visit (var f) (var a)))) (anchored true))
-(rule $Action (move $Direction) (lambda d (: @move (var d))) (anchored true))
+(rule $Action ($Move $Direction) (lambda m (lambda d (: @move (var d)))) (anchored true))
+(rule $Move (move) move (anchored true))
 
 (rule $Action ($ItemActionFragment $CountedItem) (lambda f (lambda i (: @itemAct (var f) (var i)))) (anchored true))
-(rule $ItemActionFragment (pick) pick (anchored true))
-(rule $ItemActionFragment (drop) drop (anchored true))
+(rule $Pick (pick) pick (anchored true))
+(rule $Drop (drop) drop (anchored true))
+(rule $ItemActionFragment ($Pick) (IdentityFn) (anchored true))
+(rule $ItemActionFragment ($Drop) (IdentityFn) (anchored true))
 
 
 # foreach "defines" the point variable
