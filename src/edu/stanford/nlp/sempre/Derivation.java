@@ -248,6 +248,15 @@ public class Derivation implements SemanticFn.Callable, HasScore {
   public String childStringValue(int i) {
     return Formulas.getString(children.get(i).formula);
   }
+  
+  
+  /*	
+   * function to take into account the level of similarity of the rule 
+   * used to create this derivation when trying to extend parsing
+   */
+  public void extendParsingScore (double similarity) {
+	  score = similarity * score;
+  }
 
   // Return whether |deriv| is built over the root Derivation.
   public boolean isRoot(int numTokens) {
