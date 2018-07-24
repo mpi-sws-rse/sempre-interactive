@@ -782,24 +782,6 @@ class InteractiveBeamParserState extends ChartParserState {
 	  
   
   /**
-   * Filters the partial derivations of the utterance to the derivations that those and only those categories that appear in the rule rhs
-   * @param rule
-   * @param derivList
-   */
-  private List<Derivation> ruleDerivMatchingCategoriesConservative(Rule rule, List<Derivation> derivList){
-	  ArrayList<Derivation> matchedDerivs = new ArrayList<Derivation>();
-	  
-	  Set<String> ruleCategories = rule.rhs.stream().filter(s -> s.startsWith("$")).collect(Collectors.toSet());
-	  Set<String> derivCategories = derivList.stream().map(s -> s.getCat()).collect(Collectors.toSet());
-	  
-	  if (ruleCategories.equals(derivCategories))
-		  return derivList;
-	  else
-		  return new ArrayList<Derivation>();
-  }
-	  
-  
-  /**
    * Tries to extend the parsing of a non-parsable utterance using partial parsing 
    * and similarity with rules in the grammar to compute possible relevant derivations.
    * Adds the computed derivations to ex.predDerivations and this.predDerivations
