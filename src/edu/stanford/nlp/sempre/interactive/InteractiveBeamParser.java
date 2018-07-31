@@ -804,56 +804,9 @@ class InteractiveBeamParserState extends ChartParserState {
 	  
 	//filter the rules that are not actions
 	  final Set<Rule> actionRules = parser.allRules.stream().filter(r -> r.lhs.equals("$Action")).collect(Collectors.toSet());
-	           
-	// for each action rule compute the similarity and keep the rules that are similar 
-	  for (Rule rule : actionRules) {
-		  
-		  if(Parser.opts.verbose >= 1) {
-			  LogInfo.begin_track("Computing similarity with rule %s", rule.toString());
-		  }
-		  
-		  List<List<Derivation>> maximalPackings = null;
-		  
-		  if (Parser.opts.aggressivePartialParsingMode.equals("normal")) {
-			  //we want to filter the derivations to the categories contained in the rules,
-			  //and then find the maximal packings 
-			  List<Derivation> packingMatches = ruleDerivMatchingCategories(rule, chartList);
-			  maximalPackings = InteractiveUtils.allMaximalPackings(packingMatches, numTokens);
-		  }
-		  else if (Parser.opts.aggressivePartialParsingMode.equals("conservative")) {
-			  maximalPackings = setOfMaximalPackings;
-		  }
-		  
-		  if (maximalPackings != null && maximalPackings.size() > 0) {
-			  for (List<Derivation> packing : maximalPackings) {
-				  rhs = getRHS(packing);
-				  if (Parser.opts.verbose >= 1) {
-					  LogInfo.logs("Packing is %s", packing);
-					  LogInfo.logs("The corresponding rhs is %s", rhs);
-				  }
-
-				  double similarity = computeSimilarity(rhs, rule);
-				  if (Parser.opts.verbose >= 1) {
-					  LogInfo.logs("the similarity is %f", similarity);
-				  }
-
-				  //store add the rule to the map of matching rules iff
-				  //the similarity passes the threshold and (either the rule isn't already there or the previous packing stored is less similar)
-				  if (similarity > InteractiveBeamParser.opts.simMin) {
-					  if (!ruleSimilarityMap.containsKey(rule) ||
-						  ruleSimilarityMap.get(rule) < similarity) {
-						  	ruleSimilarityMap.put(rule, Double.valueOf(similarity));
-						  	matchesOfRules.put(rule, packing);
-					  }
-				  }
-			  }
-		  } 
-		  
-		  if (Parser.opts.verbose >=1) {
-			  LogInfo.end_track();
-		  }
-	  }
-	 
+	    
+	  findApplicableRules(actionRules, ruleSimilarityMap, matchesOfRules, chartList, 0, numTokens);
+	  
 	  //Sort the rule in decreasing order of similarity
 	  List<Rule> applicableRules = new ArrayList<Rule>(ruleSimilarityMap.keySet());
 	  
@@ -905,6 +858,72 @@ class InteractiveBeamParserState extends ChartParserState {
 	  else
 		  ex.predDerivations.addAll(potentialDeriv);
 	  return; 
+  }
+  
+
+  /**
+   * Finds rules applicable for the range specified 
+   * @param ruleSet
+   * @param ruleSimilarityMap
+   * @param matchesOfRules
+   * @param chartList list of derivations applicable for the range
+   * @param start	inclusive
+   * @param end		exclusive
+   */
+  private void findApplicableRules(Set<Rule> ruleSet, Map<Rule, Double> ruleSimilarityMap, Map<Rule, List<Derivation>> matchesOfRules,
+		  						List<Derivation> chartList, int start, int end) {
+	  int length = end - start;
+	  
+	// for each action rule compute the similarity and keep the rules that are similar 
+	  for (Rule rule : ruleSet) {
+		  
+		  if(Parser.opts.verbose >= 2) {
+			  LogInfo.begin_track("Computing similarity with rule %s", rule.toString());
+		  }
+		  
+		  List<List<Derivation>> maximalPackings = null;
+		  
+		  if (Parser.opts.aggressivePartialParsingMode.equals("normal")) {
+			  //we want to filter the derivations to the categories contained in the rules,
+			  //and then find the maximal packings 
+			  List<Derivation> packingMatches = ruleDerivMatchingCategories(rule, chartList);
+			  maximalPackings = InteractiveUtils.allMaximalPackings(packingMatches, numTokens);
+		  }
+		  //generate all set of maximal packings
+		  else if (Parser.opts.aggressivePartialParsingMode.equals("conservative")) {
+			  maximalPackings = InteractiveUtils.allMaximalPackings(chartList, numTokens);
+		  }
+		  
+		  if (maximalPackings != null && maximalPackings.size() > 0) {
+			  for (List<Derivation> packing : maximalPackings) {
+				  List<String> rhs = getRHS((new ArrayList<String>(ex.getTokens())).subList(start, end), packing, start);
+				  if (Parser.opts.verbose >= 2) {
+					  LogInfo.logs("Packing is %s", packing);
+					  LogInfo.logs("The corresponding rhs is %s", rhs);
+				  }
+
+				  double similarity = computeSimilarity(rhs, rule);
+				  if (Parser.opts.verbose >= 2) {
+					  LogInfo.logs("the similarity is %f", similarity);
+				  }
+
+				  //store add the rule to the map of matching rules iff
+				  //the similarity passes the threshold and (either the rule isn't already there or the previous packing stored is less similar)
+				  if (similarity > InteractiveBeamParser.opts.simMin) {
+					  if (!ruleSimilarityMap.containsKey(rule) ||
+						  ruleSimilarityMap.get(rule) < similarity) {
+						  	ruleSimilarityMap.put(rule, Double.valueOf(similarity));
+						  	matchesOfRules.put(rule, packing);
+					  }
+				  }
+			  }
+		  } 
+		  
+		  if (Parser.opts.verbose >=2) {
+			  LogInfo.end_track();
+		  }
+	  }
+	  
   }
   
   /**
