@@ -1,6 +1,7 @@
 package edu.stanford.nlp.sempre.interactive;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -788,56 +789,112 @@ class InteractiveBeamParserState extends ChartParserState {
    * @author Akshal Aniche
    */
   private void extendParsing() {
-	  //collect all the rules that match the utterance past the similarity threshold
-	  final Map<Rule, Double> ruleSimilarityMap = new HashMap<Rule, Double>();
-	  final Map<Rule, List<Derivation>> matchesOfRules = new HashMap<Rule, List<Derivation>>();
-	  List<String> rhs;
+	  //the number of ;-separated fragments in the utterance
+	  List<String> trimmedTokens = ex.getTokens().stream().map(s -> s.trim()).collect(Collectors.toList());
+	  int sections = Collections.frequency(trimmedTokens, ";") + 1;
+
+	  //indeces of all ; in the string
+	  int[] index = new int[sections];
 	  
-	  List<List<Derivation>> setOfMaximalPackings = InteractiveUtils.allMaximalPackings(chartList, ex.getTokens().size());
+	  for (int i = 0; i < sections; i++) {
+		  int start = 0;
+		  if (i > 0) 
+			  start = index[i-1] + 1;
+		  index[i] = trimmedTokens.subList(start, numTokens).indexOf(";") + start;
+		  if (index [i] < 0)
+			  index[i] = numTokens;
+	  }
+	  
+	  if(Parser.opts.verbose > 1)
+		  LogInfo.logs("Indeces of separation of fragments : %s", Arrays.toString(index));
+	  
+	  //for each section, find similar rules and the corresponding packings, and generate matching utterances
+	  List<Map<Rule, Double>> ruleSimilarityMapList = new ArrayList<Map<Rule, Double>>(sections);
+	  List<Map<Rule, List<Derivation>>> matchesOfRulesList = new ArrayList<Map<Rule, List<Derivation>>>(sections);
+	  List<Map<String, Double>> utterancesList = new ArrayList<Map<String, Double>>();
+	  
+	  
+		//filter the rules that are not actions
+	  final Set<Rule> actionRules = parser.allRules.stream().filter(r -> r.lhs.equals("$Action")).collect(Collectors.toSet());
+	  
 	  if (Parser.opts.verbose >= 1) {
 		  LogInfo.logs("mode of partial parsing = %s", Parser.opts.aggressivePartialParsingMode);
 		  LogInfo.logs("initial partial derivations are %s", chartList);
-		  LogInfo.logs("setOfMaximalPackings = %s", setOfMaximalPackings);
 	  }
 	  
-	//filter the rules that are not actions
-	  final Set<Rule> actionRules = parser.allRules.stream().filter(r -> r.lhs.equals("$Action")).collect(Collectors.toSet());
-	    
-	  findApplicableRules(actionRules, ruleSimilarityMap, matchesOfRules, chartList, 0, numTokens);
-	  
-	  //Sort the rule in decreasing order of similarity
-	  List<Rule> applicableRules = new ArrayList<Rule>(ruleSimilarityMap.keySet());
-	  
-	  if (applicableRules.size() > 1) { 
-		  Collections.sort(applicableRules, 
-				  	new Comparator<Rule>() {
-				  		public int compare(Rule rule1, Rule rule2) {
-				  			return (ruleSimilarityMap.get(rule2)).compareTo(ruleSimilarityMap.get(rule1)); 
-				  		}
-		  			}
-		  ); 
-	  }
-	  
-	  //Should we only consider the top 3 similar rules?
-	  applicableRules = applicableRules.subList(0, Math.min(applicableRules.size(), 3));
-	  
-	  if (Parser.opts.verbose >= 1) {
-		  LogInfo.logs("Set of similar rules:");
-		  LogInfo.logs(applicableRules.toString());
-	  }
-	  
-	  
-	  List<Derivation> potentialDeriv = new ArrayList<Derivation>();
-	  for (Rule rule : applicableRules) {
-		  // checking the matching string between a rule and the best packing corresponding to that rule
-		  String matchingUtt = matchToRule(rule, matchesOfRules.get(rule));
-		  if (Parser.opts.verbose >= 1) { 
-			  LogInfo.logs("Utterance %s converted to %s", ex.getTokens(), matchingUtt);
+	  for (int i = 0; i < sections; i++) {
+		  ruleSimilarityMapList.add(new HashMap<Rule, Double>());
+		  matchesOfRulesList.add(new HashMap<Rule, List<Derivation>>());
+		  utterancesList.add(new HashMap<String, Double>());
+		  final Map<Rule, Double> ruleSimilarityMap = ruleSimilarityMapList.get(i);
+		  final Map<Rule, List<Derivation>> matchesOfRules = matchesOfRulesList.get(i);
+		  final Map<String, Double> utterances = utterancesList.get(i);
+		   
+		  //what section of the utterance are we parsing
+		  int start = (i == 0 ? 0 : index[i-1] + 1);
+		  int end = (i == sections - 1 ? numTokens : index [i]);
+		  
+		  if (Parser.opts.verbose >= 1) {
+			  LogInfo.logs("Parsing the fragment %s from %s to %s", ex.getTokens().subList(start, end), start, end);
 		  }
 		  
-		  double similarity = ruleSimilarityMap.get(rule);
+		  //only use the derivations within the range when finding applicable rules
+		  List<Derivation> chartList = this.chartList.stream().filter(d -> d.start >= start && d.end <= end).collect(Collectors.toList());
 		  
-		  potentialDeriv.addAll(getExtendedDerivationsFromUtterance(matchingUtt, similarity));
+		  findApplicableRules(actionRules, ruleSimilarityMap, matchesOfRules, chartList, start, end);
+
+		//Sort the rule in decreasing order of similarity
+		  List<Rule> applicableRules = new ArrayList<Rule>(ruleSimilarityMap.keySet());
+		  
+		  if (applicableRules.size() > 1) { 
+			  Collections.sort(applicableRules, 
+					  	new Comparator<Rule>() {
+					  		public int compare(Rule rule1, Rule rule2) {
+					  			return (ruleSimilarityMap.get(rule2)).compareTo(ruleSimilarityMap.get(rule1)); 
+					  		}
+			  			}
+			  ); 
+		  }
+		  
+		  //Should we only consider the top 3 similar rules?
+		  if (sections > 1)
+			  applicableRules = applicableRules.subList(0, Math.min(applicableRules.size(), 2));
+		  
+		 
+		  
+		  for (Rule rule : applicableRules) {
+			  //generate a matching utterance that would be parsed by the rule by using the packings
+			  String matchingUtt = matchToRule(rule, matchesOfRules.get(rule));
+			  if (utterances.containsKey(matchingUtt)) {
+				  utterances.replace(matchingUtt, Math.min(utterances.get(matchingUtt) + ruleSimilarityMap.get(rule), 1.0));
+			  }
+			  else {
+				  utterances.put(matchingUtt, ruleSimilarityMap.get(rule));
+			  }
+		  } 
+		  
+		  if (Parser.opts.verbose >= 1) {
+			  LogInfo.logs("Set of similar rules:");
+			  LogInfo.logs(applicableRules.toString());
+			  LogInfo.logs("Set of matching utterances:\n%s", utterances.keySet().toString());
+		  }
+	  }
+	 
+	  //cartesian product of all utterances generated
+	  Map<String, Double> allUtterances = generateUtterances(utterancesList, sections);
+	  
+	  List<Derivation> potentialDeriv = new ArrayList<Derivation>();
+	  
+	  for (String utterance : allUtterances.keySet()) {
+		  //generate derivations for each utterance
+		  
+		  double similarity = allUtterances.get(utterance);
+
+		  if (Parser.opts.verbose >= 1) { 
+			  LogInfo.logs("Utterance %s converted to %s with total similarity %s", ex.getTokens(), utterance, similarity);
+		  }
+		  
+		  potentialDeriv.addAll(getExtendedDerivationsFromUtterance(utterance, similarity));
 	  }
 	  
 	  if (Parser.opts.verbose >= 1) {
@@ -858,7 +915,34 @@ class InteractiveBeamParserState extends ChartParserState {
 	  return; 
   }
   
-
+  /**
+   * Generate (utterance, similarity) from a list of sets of (utterance, similarity) pairs 
+   * an utterance has similarity equal to the product of the similarity of all utterances in the cartesian product
+   * Uses recursive computation to generate all the products
+   * @param utteranceSimMap the map of utterance/similarity that are going to be used in the cartesian product
+   * @param dimension 		the dimension of the desired cartesian product
+   * @return
+   */
+  private Map<String, Double> generateUtterances(List<Map<String, Double>> utteranceSimMap, int dimension) {
+	  if (dimension == 1)
+		  return utteranceSimMap.get(0);
+	  else {
+		  Map<String, Double> utterances = new HashMap<String, Double>();
+		  Map<String, Double> recUtt = generateUtterances(utteranceSimMap.subList(1, dimension), dimension - 1);
+		  Map<String, Double> currLevel = utteranceSimMap.get(0);
+		  
+		  for (String firstPart : currLevel.keySet()) {
+			  for (String secondPart : recUtt.keySet()) {
+				  String utt = firstPart + " ; " + secondPart;
+				  double sim = currLevel.get(firstPart) * recUtt.get(secondPart);
+				  utterances.put(utt, sim);
+			  }
+		  }
+		  
+		  return utterances;
+	  }
+  }
+  
   /**
    * Finds rules applicable for the range specified 
    * @param ruleSet
