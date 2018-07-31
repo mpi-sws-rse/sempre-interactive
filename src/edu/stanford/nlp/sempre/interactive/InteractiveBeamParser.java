@@ -788,8 +788,6 @@ class InteractiveBeamParserState extends ChartParserState {
    * @author Akshal Aniche
    */
   private void extendParsing() {
-	  ArrayList<Derivation> matches = new ArrayList<Derivation>(ex.getTokens().size()); //keep track of which derivation corresponds to which category
-	  	  	   
 	  //collect all the rules that match the utterance past the similarity threshold
 	  final Map<Rule, Double> ruleSimilarityMap = new HashMap<Rule, Double>();
 	  final Map<Rule, List<Derivation>> matchesOfRules = new HashMap<Rule, List<Derivation>>();
@@ -1079,37 +1077,38 @@ class InteractiveBeamParserState extends ChartParserState {
   /**
    * Transform a non parsable utterance into a list of Strings: categories corresponding to parsable fragments and non parsable tokens
    * @author Akshal Aniche
-   * @param matches ArrayList of derivations in which to store the derivations corresponding to the parsable fragments
+   * @param initRhs RHS fraction that we need to transform
+   * @param derivList the packing used to generate the rhs
+   * @param offset offset of initRhs in the utterance, to adjust the derivations
    * @return computed List<String>
    */
-  private List<String> getRHS(List<Derivation> derivList){
-	  //base string
-	  ArrayList<String> rhs = new ArrayList<String>(ex.getTokens());
+  private List<String> getRHS(List<String> initRhs, List<Derivation> derivList, int offset){
 
 	  if (Parser.opts.verbose > 3) {
 		  LogInfo.logs("chart list = %s", derivList);
-		  LogInfo.logs("rhs before transforming: %s", rhs.toString());
+		  LogInfo.logs("rhs before transforming: %s", initRhs.toString());
 	  }
-
 
 	  for (Derivation d: derivList) {
 		  String cat = d.cat;
+		  int start = d.start - offset;
+		  int end = d.end - offset;
 		  
 		  //Ignore non-inducing categories
 		  if (!cat.toUpperCase().equals(cat)){
-			rhs.set(d.start, cat);
+			initRhs.set(start, cat);
 		  	
-		  	for (int i = d.start + 1; i < d.end; i++) {
-		  		rhs.set(i, null);
+		  	for (int i = start + 1; i < end; i++) {
+		  		initRhs.set(i, null);
 		  	}
 		  }
 	  }
 	  
-	  rhs.removeAll(Collections.singleton(null));
+	  initRhs.removeAll(Collections.singleton(null));
 	  
 	  if (Parser.opts.verbose > 3) {
-		  LogInfo.logs("After transforming: %s", rhs.toString());
+		  LogInfo.logs("After transforming: %s", initRhs.toString());
 	  }
-	  return rhs;
+	  return initRhs;
   }
 }
