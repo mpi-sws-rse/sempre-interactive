@@ -1086,22 +1086,7 @@ class InteractiveBeamParserState extends ChartParserState {
 	  double similarity = 1.0;
 
 	  //dynamic computation of longest common subsequence
-	  int[][] subsequence = new int[uttLen + 1][ruleLen + 1];
-	  
-	  for (int i = 0; i <= uttLen; i++) 
-		  subsequence[i][0] = 0;
-	  for (int j = 0; j <= ruleLen; j++) 
-		  subsequence[0][j] = 0;
-	  for (int i = 1; i <= uttLen; i++) {
-		  for (int j = 1; j <= ruleLen; j++) {
-			  if (rhs.get(i-1).equals(ruleRHS.get(j-1))) 
-				  subsequence[i][j] = 1 + subsequence [i-1][j-1];
-			  else
-				  subsequence[i][j] = Math.max(subsequence[i-1][j], subsequence[i][j-1]);
-		  }
-	  }
-	  
-	  int longestSubsequence = subsequence[uttLen][ruleLen];
+	  int longestSubsequence = longestCommonSubsequence(rhs, ruleRHS);
 	  
 	  if (Parser.opts.verbose > 5) {
 		  LogInfo.logs("Longest common subsequence length: %s", longestSubsequence);
@@ -1114,6 +1099,33 @@ class InteractiveBeamParserState extends ChartParserState {
 	  return similarity;
   }
   
+  /**
+   * Computes dynamically the length of the longest common subsequence between the two specified lists
+   * @param list1 
+   * @param list2
+   * @return length of LCS
+   */
+  private static int longestCommonSubsequence(List<String> list1, List<String> list2){
+	  int len1 = list1.size();
+	  int len2 = list2.size();
+	  
+	  int[][] subsequence = new int[len1 + 1][len2 + 1];
+	  
+	  for (int i = 0; i <= len1; i++) 
+		  subsequence[i][0] = 0;
+	  for (int j = 0; j <= len2; j++) 
+		  subsequence[0][j] = 0;
+	  for (int i = 1; i <= len1; i++) {
+		  for (int j = 1; j <= len2; j++) {
+			  if (list1.get(i-1).equals(list2.get(j-1))) 
+				  subsequence[i][j] = 1 + subsequence [i-1][j-1];
+			  else
+				  subsequence[i][j] = Math.max(subsequence[i-1][j], subsequence[i][j-1]);
+		  }
+	  }
+	  
+	  return subsequence[len1][len2];
+  }
   
   
   /**
