@@ -944,13 +944,14 @@ public class InteractiveBeamParserState extends ChartParserState {
 	  double similarity = 1.0;
 
 	  //dynamic computation of longest common subsequence
-	  int longestSubsequence = longestCommonSubsequence(rhs, ruleRHS);
+	  double longestSubsequence = longestCommonSubsequence(rhs, ruleRHS);
 	  
 	  if (Parser.opts.verbose > 5) {
 		  LogInfo.logs("Longest common subsequence length: %s", longestSubsequence);
 	  }
 	  
-	  similarity = (double) longestSubsequence / (double) longerLen;
+	  //similarity = (2 * longestSubsequence) / (double) (uttLen + ruleLen);
+	  similarity = longestSubsequence / (double) longerLen;
 	  
 	  if (similarity < 0.0 || similarity > 1.0)
 		  throw new RuntimeException("Computational problem for similarity with rule " + rule.toString());
@@ -963,7 +964,7 @@ public class InteractiveBeamParserState extends ChartParserState {
    * @param list2
    * @return length of LCS
    */
-  protected static int longestCommonSubsequence(List<String> list1, List<String> list2){
+  protected double longestCommonSubsequence(List<String> list1, List<String> list2){
 	  int len1 = list1.size();
 	  int len2 = list2.size();
 	  
