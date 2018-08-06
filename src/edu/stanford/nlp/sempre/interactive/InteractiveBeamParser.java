@@ -961,6 +961,9 @@ class InteractiveBeamParserState extends ChartParserState {
 		  						List<Derivation> chartList, int start, int end) {
 	  int length = end - start;
 	  List<List<Derivation>> maximalPackings = null;
+//	  for (Derivation dC : chartList) {
+//		  LogInfo.logs("all cats of derivation %s is %s", dC, dC.derivCategoriesDF());
+//	  }
 	  if (Parser.opts.aggressivePartialParsingMode.equals("conservative")) {
 		  maximalPackings = InteractiveUtils.allMaximalPackings(chartList, numTokens);
 	  }
