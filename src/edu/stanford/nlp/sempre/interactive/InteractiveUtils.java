@@ -186,6 +186,7 @@ public final class InteractiveUtils {
   }
 
   
+  
   /**
    * the function that returns all maximal packings - sets of non overlapping partial derivations where adding any other partial derivation would make
    * the set overlapping.
@@ -202,6 +203,7 @@ public final class InteractiveUtils {
 		  LogInfo.logs("partialParses after filtering");
 		  for (Derivation d : partialParses){
 			  LogInfo.logs("derivation %s", d.toSimpleString());
+			  d.printDerivationRecursively();
 		  }
 	  }
 	  
@@ -215,22 +217,21 @@ public final class InteractiveUtils {
 		  f_table[i] = new ArrayList[length+1];
 	  }
 	  
-	  // if derivations are over the exactly same range, we'll keep in the interval_list only one of them (the one with the best score)
-	  // Therefore, we first sort it by score (descending) and then include only the first derivation that occurs per range
-	  Collections.sort(partialParses, new Comparator<Derivation>(){
+	  // if derivations are over the exactly same range, we'll keep in the interval_list only one of them (the one with the largest tree)
+	  // Therefore, we first sort it by the tree size (descending) and then include only the first derivation that occurs per range
+	  Collections.sort(partialParses, 
+			  new Comparator<Derivation>(){
 		  @Override
 		  public int compare(Derivation d1, Derivation d2){
-			  if (d1.getScore() > d2.getScore()){
+			  if (d1.derivCategoriesDF().size() > d2.derivCategoriesDF().size()){
 				  return -1;
-			  }
-			  else if (d1.getScore() == d2.getScore()){
-				  return 0;
-			  }
+			  }			  
 			  else {
 				  return 1;
 			  }
 		  }
-	  });
+	  }
+	  );
 
 	  
 	  
