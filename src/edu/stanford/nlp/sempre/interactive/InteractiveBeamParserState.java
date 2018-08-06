@@ -819,6 +819,15 @@ public class InteractiveBeamParserState extends ChartParserState {
 		  						List<Derivation> chartList, int start, int end) {
 	  int length = end - start;
 	  
+	  List<List<Derivation>> maximalPackings = null;
+//	  for (Derivation dC : chartList) {
+//		  LogInfo.logs("all cats of derivation %s is %s", dC, dC.derivCategoriesDF());
+//	  }
+	  //generate all set of maximal packings for conservative parsing
+	  if (Parser.opts.aggressivePartialParsingMode.equals("conservative")) {
+		  maximalPackings = InteractiveUtils.allMaximalPackings(chartList, numTokens);
+	  }
+
 	// for each action rule compute the similarity and keep the rules that are similar 
 	  for (Rule rule : ruleSet) {
 		  
@@ -826,17 +835,11 @@ public class InteractiveBeamParserState extends ChartParserState {
 			  LogInfo.begin_track("Computing similarity with rule %s", rule.toString());
 		  }
 		  
-		  List<List<Derivation>> maximalPackings = null;
-		  
 		  if (Parser.opts.aggressivePartialParsingMode.equals("normal")) {
 			  //we want to filter the derivations to the categories contained in the rules,
 			  //and then find the maximal packings 
 			  List<Derivation> packingMatches = ruleDerivMatchingCategories(rule, chartList);
 			  maximalPackings = InteractiveUtils.allMaximalPackings(packingMatches, numTokens);
-		  }
-		  //generate all set of maximal packings
-		  else if (Parser.opts.aggressivePartialParsingMode.equals("conservative")) {
-			  maximalPackings = InteractiveUtils.allMaximalPackings(chartList, numTokens);
 		  }
 		  
 		  if (maximalPackings != null && maximalPackings.size() > 0) {
