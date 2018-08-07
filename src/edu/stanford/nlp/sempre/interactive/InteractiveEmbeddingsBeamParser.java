@@ -146,13 +146,15 @@ class InteractiveEmbeddingsBeamParserState extends InteractiveBeamParserState {
 					else {
 						similarity = computeSimilarityWordNet(word1, word2, sim.ordinal());
 					}
-					LogInfo.logs("%s similarity between %s and %s is %f", sim.toString(), word1, word2, similarity);
+					if (Parser.opts.verbose >= 2)
+						LogInfo.logs("%s similarity between %s and %s is %f", sim.toString(), word1, word2, similarity);
 					subsequence[i][j] = Math.max(subsequence[i-1][j], Math.max(subsequence[i][j-1], subsequence[i-1][j-1] + similarity));
 				}
 			}
 		}
 		
-		 LogInfo.logs("Subsequence length between %s and %s using %s similarity: %s", list1.toString(), list2.toString(), sim.toString(), subsequence[len1][len2]);
+		if (Parser.opts.verbose >=2)
+			LogInfo.logs("Subsequence length between %s and %s using %s similarity: %s", list1.toString(), list2.toString(), sim.toString(), subsequence[len1][len2]);
 		  
 		return subsequence[len1][len2];
 	  }
