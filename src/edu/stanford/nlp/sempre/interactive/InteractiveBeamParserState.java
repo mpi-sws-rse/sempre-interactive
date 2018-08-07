@@ -738,7 +738,8 @@ public class InteractiveBeamParserState extends ChartParserState {
 		  
 		  if (Parser.opts.verbose >= 1) {
 			  LogInfo.logs("Set of similar rules:");
-			  LogInfo.logs(applicableRules.toString());
+			  for (Rule rule : applicableRules)
+				  LogInfo.logs("%s ; similarity %s", rule.toString(), ruleSimilarityMap.get(rule).toString());
 			  LogInfo.logs("Set of matching utterances:\n%s", utterances.keySet().toString());
 		  }
 	  }
