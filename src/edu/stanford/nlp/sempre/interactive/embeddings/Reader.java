@@ -1,4 +1,4 @@
-package edu.stanford.nlp.sempre.embeddings;
+package edu.stanford.nlp.sempre.interactive.embeddings;
 
 import java.io.BufferedReader;
 import java.io.File;

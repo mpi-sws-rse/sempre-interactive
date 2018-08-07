@@ -1,4 +1,4 @@
-package edu.stanford.nlp.sempre.embeddings;
+package edu.stanford.nlp.sempre.interactive.embeddings;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -48,6 +48,8 @@ public class Word {
 	}
 	
 	public double mag() {
+		if (scalars == null) 
+			return 0.0;
 		return Math.pow(scalars.stream()
 				.reduce(0.0, (a,b) -> a + b*b), 0.5);
 	}
