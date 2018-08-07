@@ -31,8 +31,6 @@ public class InteractiveEmbeddingsBeamParser extends InteractiveBeamParser {
 	}
 	
 	public static class Options {
-		@Option(gloss="Path to the WordNet database files")
-		public String wordNetPath = "";
 		@Option(gloss="What similarity measure to use")
 		public SimilarityMeasure sim = SimilarityMeasure.LIN;
 		@Option(gloss="Path to word vector embeddings database files")
@@ -49,11 +47,14 @@ public class InteractiveEmbeddingsBeamParser extends InteractiveBeamParser {
 
 	public InteractiveEmbeddingsBeamParser(Spec spec) {
 		super(spec);
-		if (opts.embeddingsPath.equals("")) {
-			throw new IllegalArgumentException("You need to provide a path to the word vector embeddings database as an option.");
+		if (opts.sim == SimilarityMeasure.W2V) {
+			if (opts.embeddingsPath.equals("")) 
+				throw new IllegalArgumentException("You need to provide a path to the word vector embeddings database as an option.");
+			embeddings = new Embeddings(opts.embeddingsPath);
 		}
-		System.setProperty("wordnet.database.dir", opts.wordNetPath);
-		embeddings = new Embeddings(opts.embeddingsPath);
+		else {
+			embeddings = null;
+		}
 	}
 
 	@Override
