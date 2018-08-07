@@ -93,7 +93,7 @@ class InteractiveEmbeddingsBeamParserState extends InteractiveBeamParserState {
 	}
 	
 	
-	private static double computeSimilarityWordNet(String word1, String word2, int calculator) {
+	private double computeSimilarityWordNet(String word1, String word2, int calculator) {
 		WS4JConfiguration.getInstance().setMFS(false);
 		double s = InteractiveEmbeddingsBeamParser.rcs[calculator].calcRelatednessOfWords(word1, word2);
 		//Upper Bound for HSO is 16
@@ -112,7 +112,8 @@ class InteractiveEmbeddingsBeamParserState extends InteractiveBeamParserState {
 		if (w1.equals(Word.nullWord) || w2.equals(Word.nullWord))
 			return 0.0;	
 		
-		return Embeddings.sim(w1, w2);
+		double cosSim = Embeddings.sim(w1, w2); //cosine similarity, range = [-1, 1]
+		return (cosSim + 1) / 2.0;
 	}
 	
 	/**
