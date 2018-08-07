@@ -51,7 +51,7 @@ public class InteractiveBeamParserState extends ChartParserState {
     bool, full
   }
 
-  private final InteractiveBeamParser parser;
+  protected final InteractiveBeamParser parser;
   private final InteractiveBeamParserState coarseState; // Used to prune
   private final boolean execute;
   

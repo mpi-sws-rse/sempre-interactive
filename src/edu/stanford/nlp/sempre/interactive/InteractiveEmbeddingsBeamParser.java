@@ -6,6 +6,7 @@ import edu.stanford.nlp.sempre.Example;
 import edu.stanford.nlp.sempre.Params;
 import edu.stanford.nlp.sempre.Parser;
 import edu.stanford.nlp.sempre.ParserState;
+import edu.stanford.nlp.sempre.interactive.embeddings.*;
 
 import fig.basic.Option;
 import fig.basic.LogInfo;
@@ -31,9 +32,11 @@ public class InteractiveEmbeddingsBeamParser extends InteractiveBeamParser {
 	
 	public static class Options {
 		@Option(gloss="Path to the WordNet database files")
-		public String pathToWordNet = "";
+		public String wordNetPath = "";
 		@Option(gloss="What similarity measure to use")
 		public SimilarityMeasure sim = SimilarityMeasure.LIN;
+		@Option(gloss="Path to word vector embeddings database files")
+		public String embeddingsPath="";
 	}
 	
 	public static Options opts = new Options();
@@ -42,14 +45,15 @@ public class InteractiveEmbeddingsBeamParser extends InteractiveBeamParser {
 	public final static RelatednessCalculator[] rcs = 
 		{ new Lin(db), new WuPalmer(db), new HirstStOnge(db), new Path(db) };
 	
-	
+	public final Embeddings embeddings;
 
 	public InteractiveEmbeddingsBeamParser(Spec spec) {
 		super(spec);
-//		if (opts.pathToWordNet.equals("")) {
-//			throw new IllegalArgumentException("You need to provide a path to the WordNet database as an option.");
-//		}
-		System.setProperty("wordnet.database.dir", opts.pathToWordNet);
+		if (opts.embeddingsPath.equals("")) {
+			throw new IllegalArgumentException("You need to provide a path to the word vector embeddings database as an option.");
+		}
+		System.setProperty("wordnet.database.dir", opts.wordNetPath);
+		embeddings = new Embeddings(opts.embeddingsPath);
 	}
 
 	@Override
@@ -99,8 +103,16 @@ class InteractiveEmbeddingsBeamParserState extends InteractiveBeamParserState {
 	}
 	
 	
-	private static double computeSimilarityWordVector(String word1, String word2){
-		return 0.0;
+	private double computeSimilarityWordVector(String word1, String word2){
+		Embeddings embeddings = ((InteractiveEmbeddingsBeamParser) parser).embeddings;
+		Word w1 = embeddings.getWord(word1);
+		Word w2 = embeddings.getWord(word2);
+		
+		//the word wasn't found in the dictionary
+		if (w1.equals(Word.nullWord) || w2.equals(Word.nullWord))
+			return 0.0;	
+		
+		return Embeddings.sim(w1, w2);
 	}
 	
 	/**
@@ -109,7 +121,8 @@ class InteractiveEmbeddingsBeamParserState extends InteractiveBeamParserState {
 	protected double longestCommonSubsequence(List<String> list1, List<String> list2){
 		 int len1 = list1.size();
 		 int len2 = list2.size();
-		  
+		 InteractiveEmbeddingsBeamParser.SimilarityMeasure sim = InteractiveEmbeddingsBeamParser.opts.sim ;
+
 		 double[][] subsequence = new double[len1 + 1][len2 + 1];
 		  
 		 for (int i = 0; i <= len1; i++) 
@@ -126,18 +139,19 @@ class InteractiveEmbeddingsBeamParserState extends InteractiveBeamParserState {
 					subsequence[i][j] = Math.max(subsequence[i-1][j], subsequence[i][j-1]);
 				else {
 					double similarity;
-					InteractiveEmbeddingsBeamParser.SimilarityMeasure sim = InteractiveEmbeddingsBeamParser.opts.sim ;
 					if (sim == InteractiveEmbeddingsBeamParser.SimilarityMeasure.W2V) {
 						similarity = computeSimilarityWordVector(word1, word2);
 					}
 					else {
 						similarity = computeSimilarityWordNet(word1, word2, sim.ordinal());
 					}
-					LogInfo.logs("Lin similarity between %s and %s is %f", word1, word2, similarity);
+					LogInfo.logs("%s similarity between %s and %s is %f", sim.toString(), word1, word2, similarity);
 					subsequence[i][j] = Math.max(subsequence[i-1][j], Math.max(subsequence[i][j-1], subsequence[i-1][j-1] + similarity));
 				}
 			}
 		}
+		
+		 LogInfo.logs("Subsequence length between %s and %s using %s similarity: %s", list1.toString(), list2.toString(), sim.toString(), subsequence[len1][len2]);
 		  
 		return subsequence[len1][len2];
 	  }
