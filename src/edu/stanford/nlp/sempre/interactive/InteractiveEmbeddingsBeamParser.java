@@ -27,7 +27,11 @@ import edu.cmu.lti.ws4j.util.WS4JConfiguration;
 public class InteractiveEmbeddingsBeamParser extends InteractiveBeamParser {
 
 	public enum SimilarityMeasure {
-		LIN, WUP, HSO, PATH, W2V
+		LIN,
+		WUP,
+		HSO,
+		PATH,
+		W2V
 	}
 	
 	public static class Options {
@@ -57,6 +61,9 @@ public class InteractiveEmbeddingsBeamParser extends InteractiveBeamParser {
 		}
 	}
 
+	/**
+	 * Implementation of newParserState to use InteractiveEmbeddingsBeamParserState
+	 */
 	@Override
 	public ParserState newParserState(Params params, Example ex, boolean computeExpectedCounts) {
 	  InteractiveEmbeddingsBeamParserState coarseState = null;
@@ -93,7 +100,15 @@ class InteractiveEmbeddingsBeamParserState extends InteractiveBeamParserState {
 	    super(parser, params, ex);
 	}
 	
-	
+	/**
+	 * Computes the similarity between word1 and word2 using one of the WordNet dependant similarity measure
+	 * (LIN, WUP, HSO, PATH)
+	 * Since HSO gives an integer in [0, 16], the result is mapped to the range [0,1] by dividing by 16.
+	 * @author Akshal Aniche
+	 * @param word1 first word to be compared
+	 * @param word2 second word to be compared
+	 * @return the similarity in [0,1]
+	 */
 	private double computeSimilarityWordNet(String word1, String word2, int calculator) {
 		WS4JConfiguration.getInstance().setMFS(false);
 		double s = InteractiveEmbeddingsBeamParser.rcs[calculator].calcRelatednessOfWords(word1, word2);
@@ -103,7 +118,14 @@ class InteractiveEmbeddingsBeamParserState extends InteractiveBeamParserState {
 		return s;
 	}
 	
-	
+	/**
+	 * Computes the similarity between word1 and word2 using word vector cosine similarity
+	 * Since cosine similarity gives a real in [-1, 1], the result is mapped to the range [0,1]
+	 * @author Akshal Aniche
+	 * @param word1 first word to be compared
+	 * @param word2 second word to be compared
+	 * @return the similarity in [0,1]
+	 */
 	private double computeSimilarityWordVector(String word1, String word2){
 		Embeddings embeddings = ((InteractiveEmbeddingsBeamParser) parser).embeddings;
 		Word w1 = embeddings.getWord(word1);
@@ -149,6 +171,8 @@ class InteractiveEmbeddingsBeamParserState extends InteractiveBeamParserState {
 					}
 					if (Parser.opts.verbose >= 2)
 						LogInfo.logs("%s similarity between %s and %s is %f", sim.toString(), word1, word2, similarity);
+					//either regular subsequence computation result (skip one of the two tokens), 
+					//or take both tokens into account and use the similarity between the two as increment. 
 					subsequence[i][j] = Math.max(subsequence[i-1][j], Math.max(subsequence[i][j-1], subsequence[i-1][j-1] + similarity));
 				}
 			}

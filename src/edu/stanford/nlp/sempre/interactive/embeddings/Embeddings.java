@@ -6,6 +6,9 @@ public class Embeddings {
 
 	Dictionary dict;
 	
+	/**
+	 * Returns the dot product of the two vectors
+	 */
 	static double dot(List<Double> l1, List<Double> l2) {
 		if (l1.size() != l2.size())
 			throw new IllegalArgumentException("The two vectors need to have the same dimension in a similarity computation.");
@@ -15,6 +18,9 @@ public class Embeddings {
 		return sum;
 	}
 	
+	/**
+	 * Returns the cosine similarity between the two Words specified
+	 */
 	public static double sim(Word w1, Word w2) {
 		if (w1.scalars == null || w2.scalars == null) 
 			throw new IllegalArgumentException ("You cannot have one word vector be null in a similarity computation");
@@ -27,7 +33,10 @@ public class Embeddings {
 		this.dict = new Dictionary(reader);
 	}
 	
-	public Word getWord (String name) {
-		return dict.entries.getOrDefault(name, Word.nullWord);
+	/**
+	 * Returns a Word (word vector representation) corresponding to the String word passed as argument
+	 */
+	public Word getWord (String word) {
+		return dict.entries.getOrDefault(word, Word.nullWord);
 	}
 }
