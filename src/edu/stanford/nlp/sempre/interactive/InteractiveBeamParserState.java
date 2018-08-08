@@ -51,7 +51,7 @@ public class InteractiveBeamParserState extends ChartParserState {
     bool, full
   }
 
-  private final InteractiveBeamParser parser;
+  protected final InteractiveBeamParser parser;
   private final InteractiveBeamParserState coarseState; // Used to prune
   private final boolean execute;
   
@@ -829,7 +829,6 @@ public class InteractiveBeamParserState extends ChartParserState {
 		  maximalPackings = InteractiveUtils.allMaximalPackings(chartList, numTokens);
 	  }
 
-	  
 	// for each action rule compute the similarity and keep the rules that are similar 
 	  for (Rule rule : ruleSet) {
 		  
