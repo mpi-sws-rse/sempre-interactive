@@ -248,6 +248,15 @@ public class Derivation implements SemanticFn.Callable, HasScore {
   public String childStringValue(int i) {
     return Formulas.getString(children.get(i).formula);
   }
+  
+  
+  /*	
+   * function to take into account the level of similarity of the rule 
+   * used to create this derivation when trying to extend parsing
+   */
+  public void extendParsingScore (double similarity) {
+	  score = similarity * score;
+  }
 
   // Return whether |deriv| is built over the root Derivation.
   public boolean isRoot(int numTokens) {
@@ -258,7 +267,33 @@ public class Derivation implements SemanticFn.Callable, HasScore {
   public boolean isRootCat() {
     return cat.equals(Rule.rootCat);
   }
+  
+  // get the list of all categories occurring in the derivation in the depth-first order
+  public List<String> derivCategoriesDF(){
+	  List<String> allCategories = new LinkedList<String>();
+	  allCategories.add(this.getCat());
+	  for (Derivation d : this.getChildren()) {
+		  allCategories.addAll( d.derivCategoriesDF() );
+	  }
+	  return allCategories;
+  }
 
+//  public static boolean structurallyEqual(Derivation d1, Derivation d2) {
+//	  if (! d1.getCat().equals(d2.getCat())) {
+//		  return false;
+//	  }
+//	  if (d1.getChildren().size() != d2.getChildren().size()) {
+//		  return false;
+//	  }
+//	  for (int i = 0; i < d1.getChildren().size(); ++i) {
+//		  if (! structurallyEqual( d1.child(i), d2.child(i) ) ) {
+//			  return false;
+//		  }
+//	  }
+//	  return true;
+//	  
+//  }
+  
   // Functions that operate on features.
   public void addFeature(String domain, String name) { addFeature(domain, name, 1); }
   public void addFeature(String domain, String name, double value) { this.localFeatureVector.add(domain, name, value); }
